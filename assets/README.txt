@@ -1,4 +1,4 @@
-SIDEARM 0.7.0 · "Quickdraw"
+SIDEARM 0.8.0 · "Resupply"
 "Switching to your sidearm is faster than opening a browser."
 
 START
@@ -11,12 +11,40 @@ START
   type in its filter box to find one).
 
 UPDATING
+  From 0.8 on, Sidearm checks GitHub once a day and says when a new version is out. Click Update in that
+  message (or Settings -> General -> Updates): it downloads the new version, checks it against GitHub's
+  checksum and restarts into it. Your data folder (sign-ins, notes, tabs, settings) is never touched.
+  The replaced files are kept as *.old until the new version has run for half a minute; if it fails to
+  start twice, the old version comes back by itself.
+
+  By hand, as before:
   1. Right-click the tray icon -> Quit Sidearm.
   2. Either unzip the new version over this folder (replace everything; your data folder stays),
      or unzip it anywhere new and start it: it finds your earlier copy nearby and offers to bring
      over your sign-ins, open tabs and settings. Say yes, and you're still signed in everywhere.
   By hand: copy the old "data" folder next to the new Sidearm.exe before its first start.
   Never send your data folder to anyone: it holds your sign-ins.
+
+NEW IN 0.8.0
+  Updates               one click from the "is out" message, or Settings -> General -> Updates
+  Notes                 a notes box on the start page that saves itself. In either bar, n <text>
+                        (or note / н / нотатка) adds a line stamped with the time, without opening anything
+  Pinned sites          tiles on the start page: + adds one, right-click a page -> Pin to start page,
+                        drag to reorder, x to remove (up to 12). HoYoLAB and LIGA:ZAKON are there as examples
+  Wrong layout          typed нщгегиу? The bar offers "youtube" (and ghbdsn -> привіт)
+  Quick bar             stretches out from your mouse, and leans a little toward it
+  YouTube ads           muted, skipped to the end and Skip pressed (Settings -> Pages; uBlock Lite does
+                        this on its own)
+  Snapping              Settings -> General -> Snap to screen edges; hold Shift while you let go to skip it once
+  Colors                Settings -> Look rebuilt: round presets with names, your color and a gradient color
+                        as big tiles, a HEX field and a live preview of the strip
+  Fixed                 the strip (and quick bar) could come up as an empty box after a draw, mostly with
+                        hardware acceleration off; the quick bar could close itself right after appearing;
+                        per-site zoom reset to 100% after a long holster (zoom is now per site, so
+                        wiki.example.com and www.example.com share it); Alt over a word now works right after
+                        drawing, and a site where look-up is switched off says so instead of doing nothing;
+                        "NBU rate for 19.10" instead of a date that looked wrong; Settings' section links
+                        no longer pile up over the page in a narrow window
 
 NEW IN 0.7.0
   Quick bar             Alt + Space anywhere, even mid-game: a small bar pops up at your mouse. Sums, units,
@@ -101,7 +129,8 @@ KEYS
   Shield button next to the bar    this site: ads on/off, reader, fog (+ auto), force dark,
                                    word look-up on/off, zoom
   Gear button (top strip)          Settings page
-  Drag the top strip to move; drag the thin edge to resize; it snaps to screen edges.
+  Drag the top strip to move; drag the thin edge to resize; it snaps to screen edges (hold Shift as you let go
+  to drop it exactly there).
 
 GLANCE
   Alt + click a link (or middle-click; Settings -> Links can turn middle-click back
@@ -136,6 +165,7 @@ COMMAND BAR
   tt                    DeepL (same direction rule)               c   Ask Claude
   m                     Maps     r  Reddit     d  definition     ddg  DuckDuckGo
   120*3.5, 2^10, 15% of 80, sqrt(2)      answers in the bar; Enter copies it
+  n buy potions         adds a line to the notes on the start page (note / н / нотатка work too)
   5 ft in cm, 30 mph in km/h, 100 f in c  unit conversion
   100 usd, 50 € in pln, 1000 грн в usd    money (NBU rates; Settings -> Search picks what "100 usd" turns into)
   timer 5m, timer 1:30 boss, timer off    timers

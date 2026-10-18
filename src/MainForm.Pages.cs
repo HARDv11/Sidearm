@@ -239,6 +239,7 @@ namespace Sidearm
             var cfg = Json.Serialize(new
             {
                 lookup = S.lookup,
+                ytAds = S.youtubeAds && S.adblock && !UblockOn,
                 dbl = S.lookupOnDoubleClick,
                 adblock = S.adblock,
                 theme = ThemeName,
@@ -269,7 +270,8 @@ namespace Sidearm
                     var core = t.View.CoreWebView2;
                     if (t.InjectId != null) core.RemoveScriptToExecuteOnDocumentCreated(t.InjectId);
                     t.InjectId = await core.AddScriptToExecuteOnDocumentCreatedAsync(script);
-                    PostToContent(t, new { t = "cfg", lookup = S.lookup && !Sites.Get(t.PageHost).noLookup, dbl = S.lookupOnDoubleClick, gestures = S.gestures ? S.GestureMap() : null });
+                    var site = Sites.Get(t.PageHost);
+                    PostToContent(t, new { t = "cfg", lookup = S.lookup && !site.noLookup, siteOff = S.lookup && site.noLookup, dbl = S.lookupOnDoubleClick, gestures = S.gestures ? S.GestureMap() : null });
                 }
                 catch (Exception ex) { Log.Error("Refresh injection", ex); }
             }
@@ -338,6 +340,8 @@ namespace Sidearm
             switch (name)
             {
                 case "updateFilters": Adblock.UpdateNow(true); break;
+                case "updateCheck": CheckUpdatesNow(tab); break;
+                case "updateNow": UpdateNow(); break;
                 case "importWiki":
                     PostToContent(tab, new { t = "settings-msg", text = "Looking for Modern for Wikipedia…" });
                     string msg = await Extensions.Import(ui.CoreWebView2.Profile);
@@ -435,6 +439,7 @@ namespace Sidearm
                 wikiFound = wikiFoundCache,
                 browser = BrowserInfo(),
                 dataDir = Program.DataDir,
+                update = UpdateInfo(),
                 sites = sites
             };
         }
@@ -525,7 +530,7 @@ namespace Sidearm
                     RefreshInjection();
                     PushTabs();
                     break;
-                case "lookup": case "lookupOnDoubleClick": case "middleClickGlance":
+                case "lookup": case "lookupOnDoubleClick": case "middleClickGlance": case "youtubeAds":
                 case "gestures": case "gestureLeft": case "gestureRight": case "gestureUp": case "gestureDown":
                 case "gestureUpDown": case "gestureDownRight": case "gestureDownLeft":
                     RefreshInjection();

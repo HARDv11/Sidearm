@@ -75,6 +75,7 @@ namespace Sidearm
             deactivateTimer.Tick += (s, e) => { deactivateTimer.Stop(); MaybeAutoHolster(); };
             saveTimer.Tick += (s, e) => { saveTimer.Stop(); S.Save(); SaveSession(); };
             InitQuickSleep();
+            InitPaintCheck();
             InitTimers();
 
             try { injectJs = File.ReadAllText(Path.Combine(Program.UiDir, "inject.js")); }
@@ -107,6 +108,7 @@ namespace Sidearm
             ApplyBounds();
             SetupTray();
             InitRates();
+            InitUpdates();
             ThreadPool.RegisterWaitForSingleObject(drawSignal, (state, timedOut) =>
             {
                 try { BeginInvoke(new Action(Draw)); } catch (Exception) { }
@@ -255,25 +257,30 @@ namespace Sidearm
                 sleepTimer.Stop();
                 unloadTimer.Stop();
                 bool first = initTask == null;
-                if (!first && !Visible) await WakeAsync();
+                bool wasHidden = !Visible;
                 RememberGameWindow();
+                // Show the window first, then wake the views: a view made visible inside a hidden window
+                // may not repaint until something forces a layout (the blank strip of 0.7)
                 if (!Visible)
                 {
                     if (!boundsApplied) ApplyBounds();
                     Show();
                 }
+                if (!first && wasHidden) await WakeAsync();
                 RegisterGhostHotkey(true);
                 Native.ForceForeground(Handle);
                 Activate();
                 lastDraw = DateTime.UtcNow;
                 await EnsureInitialized();
                 if (first) await WakeAsync();
+                NudgeAfterShow();
                 FocusBar(true);
                 PostToUi(new { type = "drawn" });
                 PrepareSpareSoon();
                 UpdateMemory();
                 memTimer.Start();
                 Rates.RefreshIfOld();
+                CheckUpdatesIfDue();
                 if (S.quickBar && !quickKeyOk && !quickKeyWarned)
                 {
                     quickKeyWarned = true;
@@ -620,6 +627,16 @@ namespace Sidearm
                     case "holster":
                         Holster();
                         break;
+                    case "painted":
+                        OnStripPainted();
+                        break;
+                    case "note":
+                        AppendNote(Json.Str(m, "text"), true);
+                        break;
+                    case "alt":
+                        // Alt held in the command bar: pass it to the page under the pointer for a word look-up
+                        if (active != null && S.lookup) PostToContent(glance ?? active, new { t = "alt", down = Json.Bool(m, "down") });
+                        break;
                     case "copy":
                         string text = Json.Str(m, "text");
                         if (Json.Bool(m, "clean")) CopyLink(text);
@@ -639,6 +656,8 @@ namespace Sidearm
                         else if (name == "translate") ToggleTranslate(active);
                         else if (name == "ghost") ToggleGhost();
                         else if (name == "popout") PopOutVideo(glance ?? active);
+                        else if (name == "update") UpdateNow();
+                        else if (name == "lookupOn" && active != null) { SetSiteOption("lookup", true); Toast("Word look-up is on again for this site", null, null); }
                         break;
                     case "log":
                         Log.Info("ui: " + Json.Str(m, "text"));
@@ -864,6 +883,8 @@ namespace Sidearm
 
         void SnapToEdges()
         {
+            // off in Settings, or Shift held as you let go: leave it exactly where it was dropped
+            if (!S.snapEdges || (Control.ModifierKeys & Keys.Shift) != 0) return;
             var wa = Screen.FromHandle(Handle).WorkingArea;
             int snap = ToPx(24);
             int x = Left, y = Top;

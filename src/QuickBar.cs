@@ -32,6 +32,7 @@ namespace Sidearm
             Size = new Size(560, 64);
             View = new WebView2 { Dock = DockStyle.Fill, DefaultBackgroundColor = back };
             Controls.Add(View);
+            paintCheck.Tick += OnPaintTimeout;
         }
 
         protected override CreateParams CreateParams
@@ -68,6 +69,7 @@ namespace Sidearm
                 var m = Json.Parse(e.WebMessageAsJson);
                 if (m == null) return;
                 if (Json.Str(m, "op") == "layout") { pageHeight = (int)Json.Num(m, "h", 0); FitHeight(); return; }
+                if (Json.Str(m, "op") == "painted") { OnPainted(); return; }
                 if (Json.Str(m, "op") == "ready") Ready = true;
                 var handler = Message;
                 if (handler != null) handler(m);
@@ -81,8 +83,15 @@ namespace Sidearm
             catch (Exception ex) { Log.Error("Quick bar post", ex); }
         }
 
-        /// <summary>Shows the bar with its input under the pointer ("mouse"), mid-screen ("center") or near the top ("top").</summary>
-        public void Summon(string where)
+        Rectangle target;
+        int cursorX;
+        DateTime shownAt;
+
+        /// <summary>
+        /// Places and shows the bar with its input under the pointer ("mouse"), mid-screen ("center") or near the
+        /// top ("top"). The views wake after this (a view woken inside a hidden window may stay blank), then <see cref="Present"/>.
+        /// </summary>
+        public void Place(string where)
         {
             IntPtr fg = Native.GetForegroundWindow();
             if (fg != Handle) returnTo = fg;
@@ -106,18 +115,91 @@ namespace Sidearm
             }
             x = Math.Max(wa.Left + 8, Math.Min(x, wa.Right - w - 8));
             y = Math.Max(wa.Top + 8, y);
-            Bounds = new Rectangle(x, y, w, pageHeight > 0 ? pageHeight : bar);
+            target = new Rectangle(x, y, w, pageHeight > 0 ? pageHeight : bar);
+            cursorX = where == "mouse" ? Math.Max(x, Math.Min(cursor.X, x + w)) : x + w / 2;
+            bool animate = !Visible && SystemInformation.UIEffectsEnabled;
+            Bounds = animate ? StartRect() : target;
+            shownAt = DateTime.UtcNow;
             if (!Visible) Show();
+            if (animate) Unfurl();
+        }
+
+        /// <summary>Focus, tell the page, and check that it painted.</summary>
+        public void Present()
+        {
             Native.ForceForeground(Handle);
             Activate();
             try { View.Focus(); } catch (Exception) { }
-            Post(new { type = "show" });
+            MainForm.KickView(View, false);
+            double scale = Native.Scale(Handle);
+            Post(new { type = "show", ox = (int)((cursorX - target.X) / scale) });
+            paintTries = 0;
+            paintCheck.Stop(); paintCheck.Start();
+        }
+
+        // ── the bar stretches out from the pointer, with a little overshoot ──
+        readonly Timer anim = new Timer { Interval = 15 };
+        DateTime animStart;
+        const double AnimMs = 170;
+
+        Rectangle StartRect()
+        {
+            int w0 = Math.Max(48, target.Width / 5);
+            int x0 = Math.Max(target.X, Math.Min(cursorX - w0 / 2, target.Right - w0));
+            return new Rectangle(x0, target.Y, w0, target.Height);
+        }
+
+        void Unfurl()
+        {
+            var from = StartRect();
+            animStart = DateTime.UtcNow;
+            anim.Stop();
+            anim.Tick -= OnAnim;
+            anim.Tick += OnAnim;
+            animFrom = from;
+            anim.Start();
+        }
+
+        Rectangle animFrom;
+
+        void OnAnim(object sender, EventArgs e)
+        {
+            double t = Math.Min(1, (DateTime.UtcNow - animStart).TotalMilliseconds / AnimMs);
+            // ease-out-back: overshoots by a few percent, then settles
+            const double c1 = 1.2, c3 = c1 + 1;
+            double k = 1 + c3 * Math.Pow(t - 1, 3) + c1 * Math.Pow(t - 1, 2);
+            int l = (int)Math.Round(animFrom.Left + (target.Left - animFrom.Left) * k);
+            int r = (int)Math.Round(animFrom.Right + (target.Right - animFrom.Right) * k);
+            if (r - l < 24) r = l + 24;
+            Bounds = new Rectangle(l, target.Y, r - l, Height);
+            if (t >= 1) { anim.Stop(); Bounds = new Rectangle(target.X, target.Y, target.Width, Height); MainForm.KickView(View, false); }
+        }
+
+        // ── did it paint? ──
+        readonly Timer paintCheck = new Timer { Interval = 350 };
+        int paintTries;
+
+        void OnPainted()
+        {
+            paintCheck.Stop();
+            if (paintTries > 0) Log.Info("Quick bar painted after " + paintTries + (paintTries == 1 ? " kick" : " kicks"));
+        }
+
+        void OnPaintTimeout(object sender, EventArgs e)
+        {
+            paintCheck.Stop();
+            if (!Visible) return;
+            paintTries++;
+            MainForm.KickView(View, true);
+            Log.Info(paintTries == 1 ? "Quick bar didn't paint after show; kicked it" : "Quick bar still didn't paint; kicked it again");
+            if (paintTries < 3) paintCheck.Start();
         }
 
         void FitHeight()
         {
             if (pageHeight <= 0) return;
             int h = Math.Max(24, pageHeight);
+            target.Height = h;
             if (h != Height) Height = h;
         }
 
@@ -126,6 +208,8 @@ namespace Sidearm
         {
             if (!Visible) return;
             keepFocus = toSidearm;
+            anim.Stop();
+            paintCheck.Stop();
             Hide();
             if (!toSidearm && returnTo != IntPtr.Zero) Native.SetForegroundWindow(returnTo);
             keepFocus = false;
@@ -148,8 +232,14 @@ namespace Sidearm
         void OnDeactivateTick(object sender, EventArgs e)
         {
             deactivate.Stop();
+            if (!Visible || Native.GetForegroundWindow() == Handle || ForegroundIsOurs()) return;
+            // the hotkey's own focus dance can briefly hand focus elsewhere right after it appears: give it a moment
+            double age = (DateTime.UtcNow - shownAt).TotalMilliseconds;
+            if (age < 500) { deactivate.Interval = (int)(520 - age); deactivate.Start(); return; }
+            deactivate.Interval = 120;
             // clicked somewhere else (the game, the desktop): just go, focus is already where you put it
-            if (Visible && Native.GetForegroundWindow() != Handle && !ForegroundIsOurs()) Dismiss(true);
+            Log.Info("Quick bar closed: focus went to " + Native.ForegroundProcessName());
+            Dismiss(true);
         }
 
         protected override void OnFormClosing(FormClosingEventArgs e)

@@ -54,7 +54,7 @@ const results = {};
   await p.waitForTimeout(200);
   await p.screenshot({ path: OUT + 'strip-timer-' + LANG + '.png', clip: { x: 0, y: 0, width: 640, height: 120 } });
   // palette: money and timer
-  for (const [q, name] of [['100 usd', 'money'], ['timer 5m boss', 'timer']]) {
+  for (const [q, name] of [['100 usd', 'money'], ['timer 5m boss', 'timer'], ['n buy 3 fragile resin', 'note'], ['нщгегиу', 'layout']]) {
     await p.click('#bar');
     await p.fill('#q', q);
     await p.waitForTimeout(150);
@@ -74,10 +74,10 @@ const results = {};
   await q.addInitScript(stub);
   await q.goto(BASE + 'quick.html');
   await q.evaluate(i => window.__deliver(i), init);
-  await q.evaluate(() => window.__deliver({ type: 'show' }));
+  await q.evaluate(() => window.__deliver({ type: 'show', ox: 280 }));
   await q.waitForTimeout(100);
   await q.screenshot({ path: OUT + 'quick-empty-' + LANG + '.png', clip: { x: 0, y: 0, width: 560, height: 120 } });
-  for (const [text, name] of [['100 usd in eur', 'money'], ['w kyiv', 'bang'], ['timer 3 min respawn', 'timer'], ['2^10', 'calc']]) {
+  for (const [text, name] of [['100 usd in eur', 'money'], ['w kyiv', 'bang'], ['timer 3 min respawn', 'timer'], ['2^10', 'calc'], ['нотатка код GENSHINGIFT', 'note'], ['рщнщдфи', 'layout']]) {
     await q.fill('#q', text);
     await q.waitForTimeout(80);
     const h = await q.evaluate(() => Math.ceil(document.getElementById('qb').getBoundingClientRect().height));
@@ -99,11 +99,12 @@ const results = {};
   await s.goto(BASE + 'settings.html');
   const S = { hotkey: 'Alt+`', ghostHotkey: 'Alt+G', quickHotkey: 'Alt+Space', quickBar: true, quickPosition: 'mouse', blocker: 'ublock', adblock: true,
     currency: 'UAH', translateMode: 'inplace', translateTo: 'uk', autoTranslate: 'offer', neverTranslate: 'uk, en', theme: 'dark', language: LANG, bangs: init.bangs,
-    searchUrl: 'https://www.google.com/search?q={q}', opacity: 1, uiScale: 1, sendTo: 'auto', aiProvider: 'claude', claudeOpenIn: 'app', gestures: true, ghostOpacity: 0.6 };
+    searchUrl: 'https://www.google.com/search?q={q}', opacity: 1, uiScale: 1, sendTo: 'auto', aiProvider: 'claude', claudeOpenIn: 'app', gestures: true, ghostOpacity: 0.6, accent: '#6f9bd1', accent2: '', tint: 30, grain: 0, updateCheck: true, snapEdges: true, youtubeAds: true, autoHolster: true };
   await s.evaluate(S => window.__deliver({ t: 'settings', s: S, version: '0.6.2 · Loadout', filters: 'uBlock Origin Lite: On: uBlock Origin Lite 2026.1012.1545',
-    ublock: 'On: uBlock Origin Lite 2026.1012.1545', ublockOn: true, quickKeyOk: true, rates: 'NBU · 16.10.2026 · 43 currencies', wiki: 'Not installed', sites: {}, browser: { name: 'Zen', choice: 'auto' } }), S);
+    ublock: 'On: uBlock Origin Lite 2026.1012.1545', ublockOn: true, quickKeyOk: true, rates: 'NBU · 16.10.2026 · 43 currencies', wiki: 'Not installed', sites: {}, browser: { name: 'Zen', choice: 'auto' },
+    update: { current: '0.8.0', latest: '0.8.1', title: 'Sidearm 0.8.1 · Resupply', notes: 'Fixed: the quick bar on two monitors.\nNew: a bigger notes box.', status: 'Sidearm 0.8.1 is out', can: true } }), S);
   await s.waitForTimeout(200);
-  for (const id of ['quick', 'pages', 'search', 'translate']) {
+  for (const id of ['general', 'quick', 'look', 'pages', 'search', 'translate']) {
     await s.evaluate(id => document.getElementById(id).scrollIntoView(), id);
     await s.waitForTimeout(80);
     const box = await s.evaluate(id => { const r = document.getElementById(id).getBoundingClientRect(); return { y: r.top, h: r.height }; }, id);

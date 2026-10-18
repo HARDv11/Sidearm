@@ -26,6 +26,11 @@
     <div class="s-row"><div><b>Holster when you click back into the game</b><small>Off keeps Sidearm up until you holster it.</small></div><span data-bool="autoHolster"></span></div>
     <div class="s-row"><div><b>Pin on screen</b><small>Stay visible while the game has focus.</small></div><span data-bool="pinned"></span></div>
     <div class="s-row"><div><b>Start with Windows</b><small>Starts holstered in the tray.</small></div><span id="autostart"></span></div>
+    <div class="s-row"><div><b>Updates</b><small id="updStatus" class="s-status">…</small></div>
+      <span class="s-btns"><button id="updCheck" class="pbtn">Check now</button><button id="updNow" class="pbtn accent" hidden>Update</button></span></div>
+    <div class="s-upd" id="updNotes" hidden><b id="updTitle" data-raw></b><pre id="updText" data-raw></pre></div>
+    <div class="s-row"><div><b>Check for updates</b><small>Once a day, from Sidearm's page on GitHub. Nothing installs until you click Update, and the data folder (sign-ins, notes) is never touched.</small></div><span data-bool="updateCheck"></span></div>
+    <div class="s-row"><div><b>Snap to screen edges</b><small>A window dropped near an edge jumps to it. Hold Shift while you let go to skip it once.</small></div><span data-bool="snapEdges"></span></div>
     <div class="s-row"><div><b>Theme</b><small>System follows Windows' light/dark setting.</small></div>
       <span class="s-seg" data-choice="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="system">System</button></span></div>
     <div class="s-row"><div><b>Tabs</b><small>Above the page or along the bottom of the window.</small></div>
@@ -46,13 +51,25 @@
 
   <section id="look">
     <h2>Look</h2>
-    <div class="s-row"><div><b>Color</b><small>The accent everywhere in Sidearm, and the window border.</small></div>
-      <span class="s-swatches" id="swatches"></span></div>
-    <div class="s-row"><div><b>Your own colors</b><small>Pick one, or two for a gradient across the top strip.</small></div>
-      <span class="s-colors"><input type="color" id="accent" title="Color"><input type="color" id="accent2" title="Second color for a gradient"><button id="clear2" class="link">No gradient</button></span></div>
+    <div class="s-look">
+      <div class="s-blockhead"><b>Color</b><small>The accent everywhere in Sidearm, and the window border. Pick a preset, or your own one or two colors.</small></div>
+      <div class="s-swatches" id="swatches"></div>
+      <div class="s-colors">
+        <label class="s-ctile" id="tile1" title="Open the color picker"><input type="color" id="accent"><i class="chip"></i><span><b>Your color</b><em id="hex1v" data-raw></em></span></label>
+        <label class="s-ctile" id="tile2" title="Open the color picker"><input type="color" id="accent2"><i class="chip"></i><span><b>Gradient color</b><em id="hex2v"></em></span><button id="clear2" class="x" type="button" title="No gradient">&times;</button></label>
+        <span class="s-hex"><span>HEX</span><input id="hex" class="s-text" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#d4a24c" aria-label="Your color as HEX"></span>
+      </div>
+    </div>
     <div class="s-row"><div><b>Tint the strip</b><small>How much of your color the top strip takes.</small></div><span class="s-range"><input type="range" min="0" max="100" step="5" data-range="tint" data-scale="1"><output></output></span></div>
     <div class="s-row"><div><b>Grain</b><small>A fine film-grain texture over Sidearm's own pages, like Zen. Websites stay untouched.</small></div><span class="s-range"><input type="range" min="0" max="100" step="5" data-range="grain" data-scale="1"><output></output></span></div>
-    <div class="s-preview" id="lookPreview"><span class="pv-brand">◎ SIDEARM</span><span class="pv-bar">Search Google…</span><span class="pv-badge">W</span><span class="pv-sw"><i></i></span></div>
+    <div class="s-preview" id="lookPreview" aria-hidden="true">
+      <div class="pv-strip">
+        <span class="pv-brand"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v6M12 16.5v6M1.5 12h6M16.5 12h6" stroke="currentColor" stroke-width="2"/></svg>Sidearm</span>
+        <span class="pv-bar"><span class="pv-badge">w</span>Search Google…</span>
+        <span class="pv-tabs"><span class="pv-tab on">Wiki</span><span class="pv-tab">Map</span></span>
+      </div>
+      <div class="pv-page"><i></i><i></i><i></i></div>
+    </div>
   </section>
 
   <section id="search">
@@ -87,6 +104,7 @@
       <span class="s-seg" data-choice="blocker"><button data-v="sidearm">Sidearm</button><button data-v="ublock" data-raw>uBlock</button></span></div>
     <div class="s-row" id="ublockRow" hidden><div><b>uBlock Origin Lite</b><small id="ublockStatus" class="s-status">…</small></div>
       <span class="s-btns"><button id="ublockOpen" class="pbtn">Its settings</button><button id="ublockUpdate" class="pbtn">Update</button></span></div>
+    <div class="s-row"><div><b>Skip YouTube ads</b><small>Mutes YouTube's video ads, jumps to their end and presses Skip. uBlock Origin Lite does this on its own.</small></div><span data-bool="youtubeAds"></span></div>
     <div class="s-row" id="listsRow"><div><b>Filter lists</b><small>EasyList, EasyPrivacy, EasyList Cookie. Updated weekly by themselves.</small></div><button id="updateFilters" class="pbtn">Update now</button></div>
     <div class="s-row"><div><b>Prefer dark pages</b><small>Sites with a dark theme use it. Force dark per site in the page panel.</small></div><span data-bool="preferDark"></span></div>
     <div class="s-row"><div><b>Zoom out on narrow windows</b><small>First visit to a site only; your own zoom always wins.</small></div><span data-bool="autoZoom"></span></div>

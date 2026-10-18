@@ -6,7 +6,7 @@ Sidearm is a pocket browser for Windows that you draw over a borderless game wit
 
 Sidearm is a small, always-on-top browser window for quick lookups mid-game. It doesn't replace your main browser: it's what you reach for when opening that browser would mean alt-tabbing out of a match. Tagline, used on the start page and tray: *Switching to your sidearm is faster than opening a browser.*
 
-It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.7.0 · Quickdraw.**
+It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.8.0 · Resupply.**
 
 **Non-negotiables**
 
@@ -61,6 +61,9 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `src/MainForm.Extras.cs` | Translate (page proxy), accent on the window frame, load timing, spare tab, warm start, background memory level |
 | `src/MainForm.Tools.cs` | 0.7: quick bar glue and its hotkey, timers, exchange-rate push, video pop-out, in-place translation batches, uBlock Origin Lite switching |
 | `src/QuickBar.cs`, `src/VideoWindow.cs` | The quick bar window (borderless, topmost, hides on focus loss and hands focus back) and the video pop-out window (tool window, opacity in its system menu) |
+| `src/MainForm.Paint.cs` | 0.8: makes sure the strip paints after a draw (`NudgeAfterShow`, the `painted` handshake, `KickView`) |
+| `src/MainForm.Home.cs` | 0.8: the start page's notes (`data\notes.txt`, `AppendNote` for `n …`) and pinned sites (`data\pins.json`, `PinPage`) |
+| `src/Updater.cs`, `src/MainForm.Update.cs` | 0.8: update check against GitHub Releases, download + SHA-256 check, file swap with `.old` copies, rollback, and the toast / Settings glue |
 | `src/Rates.cs`, `src/Chime.cs`, `src/Ublock.cs` | NBU exchange rates with a fallback and a disk cache; the in-memory timer chime; uBlock Origin Lite download, unpack and enable |
 | `src/FilterEngine.cs`, `Adblock.cs` | ABP-syntax filter engine (host fast path, token index, cosmetic rules by class / id) and list download and weekly update |
 | `src/Lookup.cs` | Word look-up: dictionaryapi.dev (time-boxed), Wiktionary, Wikipedia summary, Google translate with fallbacks, `TranslateBatch` for in-place translation, cache, 40/min limit |
@@ -73,7 +76,7 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `ui/pop.html` | Host page for YouTube and Twitch embeds in the video pop-out (they refuse to play without a referrer or `parent`) |
 | `ui/inject.js` | Runs in every page: keys, look-up card, cosmetic hiding, fog, force dark, Glance links, gestures, image viewer, page language, video detection, in-place translation |
 | `ui/look.js` | Accent, gradient tint and grain from the user's colors, shared by strip, start page and settings |
-| `ui/newtab.html` | Start page and the Field manual |
+| `ui/newtab.html` | Start page: pinned sites, notes and the Field manual |
 | `ui/settings.html`, `settings.js` | Settings page (talks to the shell with `settings-*` messages) |
 | `ui/reader.js`, `ui/vendor/` | Reader overlay around Mozilla Readability 0.6.0 |
 | `ui/sidearm.css`, `ui/fonts/` | The whole theme; NV Bitter, NV Jost, Sourcerer (OFL) |
@@ -122,10 +125,15 @@ Everything talks through WebView2 web messages: pages call `chrome.webview.postM
 | `claude`, `search` | active | Ask AI or search a selected word; throttled to one per 1.5 s |
 | `fog-done`, `reader-none` | active | Results to show as toasts |
 | `settings-get`, `-set`, `-bangs`, `-action` | settings page only | Settings changes |
+| `home-get`, `notes-set`, `pins-set` | start page only (`IsStartPage`) | 0.8: read the notes and pins, save the notes box, save the pin list (cleaned: http(s) only, at most 12) |
+| `lookup-off` | active | 0.8: Alt held over a word on a site where look-up is switched off; the shell offers to turn it back on |
+| `yt-ad` | any tab | 0.8: the YouTube ad skipper did its thing (logged once) |
 
-**Shell → page**: `cfg` (look-up, gestures), `theme`, `dim` (behind a Glance), `lookup-result`, `lookup-sel`, `lookup-cancel`, `cosmetic-css`, `fog`, `dark`, and `settings` / `settings-msg` for the settings page.
+**Shell → page**: `cfg` (look-up, `siteOff`, gestures), `alt` (`down`: Alt relayed from the command bar, 0.8), `notes` / `pins` (start page), `theme`, `dim` (behind a Glance), `lookup-result`, `lookup-sel`, `lookup-cancel`, `cosmetic-css`, `fog`, `dark`, and `settings` / `settings-msg` for the settings page.
 
 **Since 0.7.** Shell → strip also sends `timers` (`now`, `list` of `id`, `label`, `ends` in ms) and `rates` (the NBU snapshot); `init` carries `rates`, `currency` and `quickHotkey`. Shell → page adds `tr-inplace` (`on`, `to`) and `tr-result` (`id`, `texts`, or null when Google refused). The quick bar page talks to `QuickBar.cs` with `type: "quick"` and an `op`: `ready`, `layout` (`h`, device px), `go` (`url`, `newTab`), `zen`, `copy`, `timer`, `esc`, `settings`; the shell answers with `init`, `show`, `rates` and `timers`. The video pop-out takes only `esc`, plus `open` (`url`) from `pop.html`.
+
+**Since 0.8.** Strip → shell also sends `painted` (answer to `drawn`, from an animation frame), `alt` (`down`) and `note` (`text`); `cmd` takes `update` and `lookupOn`. The quick bar sends `op: "painted"` after `show` (which now carries `ox`, where the pointer is) and `op: "note"`.
 
 The page script's config is baked in at injection: `InjectScript()` replaces `/*SIDEARM_CFG*/{}` in `inject.js` with JSON. Changing a setting re-registers the script for future pages and posts `cfg` to open ones.
 
@@ -142,7 +150,10 @@ Everything the user can change lives in `data\settings.json`, and the settings p
 | `settings.json` | All settings, window position, `videoBounds` of the pop-out |
 | `session.json` | Open tabs and the active one (empty in amnesia mode) |
 | `sites.json` | Per-site choices: `allowAds`, `autoFog`, `forceDark`, `readerSize`, `noLookup`, `autoTranslate` |
-| `zoom.json` | Per-host zoom |
+| `zoom.json` | Per-site zoom (`hoyolab.com`); per-host entries from before 0.8 still win for their host |
+| `notes.txt` | 0.8: the start page's notes box (amnesia mode doesn't touch it) |
+| `pins.json` | 0.8: pinned sites, `[{ title, url, icon }]`; missing = the two examples |
+| `update\` | 0.8: `pending.json` while a fresh update is unconfirmed, `failed.txt` after a failed install, the download while it runs |
 | `rates.json` | The last exchange rates (`date`, `source`, hryvnias per unit) |
 | `filters\` | Downloaded filter lists (EasyList, EasyPrivacy, EasyList Cookie), refreshed weekly; downloaded on first start since 0.7 |
 | `extensions\` | The imported copy of Modern for Wikipedia, and `ublock-lite\` when uBlock Origin Lite was picked |
@@ -172,6 +183,10 @@ Each of these cost a build to learn. Read them before changing the area they tou
 - **Patch the strip, don't rebuild it.** `tabs` arrives several times a second on busy pages; re-creating tabs, favicons and the reload icon each time made the strip flicker. `renderTabs` keeps one node per tab id and skips identical lists.
 - **Focus checks see the engine's processes.** Clicking into a web view can deactivate the form, so "did focus leave?" means the foreground process is neither Sidearm nor one of `env.GetProcessInfos()` (the quick bar uses the same test).
 - **Extensions load from their folder and keep it.** WebView2 rejects folder names starting with `_` (except `_locales`), and an extension's files can't change while it's loaded: remove it, replace the folder, add it again (`Ublock.Update`).
+- **Show the window before waking its views (0.8).** A view made visible inside a hidden window may keep an empty rectangle until something forces a layout, especially with `--disable-gpu`. `DrawAsync` and `SummonQuick` now show first, then call `SetViewVisible`, then `NotifyParentWindowPositionChanged`; the strip answers `drawn` with `painted` from `requestAnimationFrame`, and no answer in 350 ms means `KickView(…, hard)` (visibility flick plus a 1 px resize).
+- **The page script runs before `<html>` exists.** `document.documentElement` is null at that point: listen on `window` (0.8's first Alt relay broke the whole script this way).
+- **Alt only reaches the page with keyboard focus.** After a draw the focus is in the command bar, so the strip relays Alt (`alt` message) and the page does the look-up if the pointer is over it.
+- **Renaming a running exe is allowed; overwriting it isn't.** The updater renames every replaced file to `.old`, moves the new one in, and only deletes the `.old` files after the new version has run 30 s. It closes the page engine first so nothing in `ui\` is held open.
 - **Embeds want a parent page.** YouTube refuses an embed opened as the top page (no referrer) and Twitch needs `parent=`, so the pop-out loads them inside `ui/pop.html`.
 
 **State and data**
@@ -210,6 +225,30 @@ After shipping, the log is the only window into Windows behavior. New features s
 ## Changelog
 
 Newest first. Every version name is in the log's `starting` line, so log entries can be matched to builds. Milestones 1–4 of the original plan map to 0.1, 0.3, 0.4 and 0.5.
+
+### 0.8.0 · Resupply — 2026-10-18
+
+*Fixes from testers' logs and videos, the start page grows up, and updates without zips.*
+
+**Added**
+
+- **Updates from GitHub** (`Updater.cs`, `MainForm.Update.cs`): once a day Sidearm asks `api.github.com/repos/HARDv11/Sidearm/releases/latest`. A newer release shows a toast with an Update button (and a row in Settings → General with the release notes). Update downloads the `*-share-uk.zip`, checks it against the SHA-256 GitHub publishes for the asset (`digest`, or a `<zip>.sha256` asset), unpacks it into `data\update`, closes the page engine, swaps the files in (each replaced file kept as `.old`), and restarts with `--after-update <pid>`. The new copy deletes the `.old` files after 30 s; two failed starts put them back. `data\` is never touched.
+- **Notes** on the start page (one box, saved to `data\notes.txt`), and `n` / `note` / `н` / `нотатка` in both bars adds a time-stamped line.
+- **Pinned sites** on the start page (`data\pins.json`): a + tile, right-click a page → Pin to start page, drag to reorder, × to remove, up to 12. HoYoLAB and LIGA:ZAKON as examples.
+- **Wrong-layout fix** in `query.js` (`layoutFix`): `нщгегиу` offers `youtube`, `ghbdsn` offers `привіт`, judged by common letter pairs and vowels.
+- **Quick bar animation**: it stretches out from the pointer (ease-out with a slight overshoot) and leans toward the mouse while hovered. Off when Windows' animations are off.
+- **YouTube ad skipper** in `inject.js` (`youtubeAds`, only with Sidearm's own blocker): mutes the ad, jumps to its end, presses Skip.
+- **Snap to screen edges** is now a setting (`snapEdges`), and Shift while letting go skips it once.
+
+**Fixed**
+
+- The strip and the quick bar could come up blank after a draw (hardware acceleration off, warm start): see the gotcha above.
+- The quick bar could close itself right after appearing: Sidearm's own process now counts as "ours", deactivation is ignored for 500 ms after it shows, and the reason it closes is logged.
+- Per-site zoom reset to 100% after a long holster: `DisposeView` and new views reset `ZoomHost`. Zoom is now kept per site.
+- Settings → Look's color picker lost its CSS around 0.6.1. Rebuilt: round presets with names (Ukraine as a split circle), tiles for your color and the gradient color, a HEX field and a live strip preview.
+- Alt over a word did nothing until you clicked into the page (now relayed from the bar), and nothing at all on a site where look-up was switched off (now offers to turn it back on).
+- "NBU rate · 19.10.2026" on a Friday looked wrong: it now reads "NBU rate for 19.10".
+- Settings' section links piled up over the page in a narrow window: they scroll sideways in one row now.
 
 ### 0.7.0 · Quickdraw — 2026-10-16
 
@@ -363,10 +402,14 @@ Newest first. Every version name is in the log's `starting` line, so log entries
 - [ ] 0.7: the quick bar hides and hands focus back to a full-screen game. Alt+Space is taken by PowerToys Run where it's installed; the key can be changed in Settings.
 - [ ] 0.7: Google's batch translate keeps one line per text, and a long page doesn't hit the 429 limit.
 - [ ] 0.7: re-scan the new zip on VirusTotal.
+- [ ] 0.8: the strip and quick bar paint after a draw with hardware acceleration off (look for "kicked it" in the log).
+- [ ] 0.8: the first real update (0.8.0 → 0.8.1): download, swap, restart, `.old` files gone after 30 s.
+- [ ] 0.8: the quick bar's stretch animation looks smooth with a web view inside (it resizes the window ~10 times).
+- [ ] 0.8: Alt relayed from the command bar reaches the page (mouse events keep coming while the bar has focus).
+- [ ] 0.8: the YouTube ad skipper still finds YouTube's player classes.
 
 **Ideas on the table**
 
-- An update check against GitHub Releases, so updating doesn't need a manual zip.
 - Code signing (for example SignPath's free open-source plan): the real fix for SmartScreen and scanner guesses.
 - Translate whole sentences in place even when they contain links or bold words (needs an HTML-aware endpoint).
 - A redesign of the icons and layouts.

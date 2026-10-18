@@ -24,6 +24,8 @@
   function L(s, a) { var d = CFG.dict, t = d && d[s] ? d[s] : s; return a == null ? t : t.split('{1}').join(a); }
   // your accent color (Settings → Look), or the theme's brass
   function ACC() { return CFG.accent || (CFG.theme === 'light' ? '#a26c14' : '#d4a24c'); }
+  // look-up switched off for this site only (shield panel): Alt then offers to turn it back on instead of doing nothing
+  var SITE_OFF = !OURS && CFG.lookup && listed(CFG.noLookup);
   if (OURS || listed(CFG.noLookup)) CFG.lookup = false;
   function post(m) { try { wv.postMessage(m); } catch (e) {} }
   function typing(t) {
@@ -37,7 +39,7 @@
 
   window.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && current) { e.stopPropagation(); e.preventDefault(); hide(); return; }
-    if (e.key === 'Alt' && !e.repeat && CFG.lookup) { altDown = true; schedule(380); }
+    if (e.key === 'Alt' && !e.repeat && (CFG.lookup || SITE_OFF)) { altDown = true; altRelayed = false; schedule(380); }
     else if (altDown && e.key !== 'Alt') { altDown = false; clearTimeout(hoverTimer); } // Alt+key is a shortcut, not a look-up
   }, true);
   window.addEventListener('keyup', function (e) { if (e.key === 'Alt') { altDown = false; clearTimeout(hoverTimer); } }, true);
@@ -57,11 +59,16 @@
   // ───────────── look-up: where, and which word ─────────────
 
   var mouse = { x: -1, y: -1 }, ctx = { x: 40, y: 40 }, altDown = false, hoverTimer = 0;
+  // Alt held while the keyboard is in Sidearm's command bar: the shell relays it here (0.8), so a look-up works
+  // right after drawing, without clicking into the page first. Only while the pointer is over this page.
+  var altRelayed = false, pointerIn = false, offHinted = false;
+  // (the script runs before <html> exists, so listen on the window: leaving the page has no related target)
+  window.addEventListener('mouseout', function (e) { if (!e.relatedTarget) pointerIn = false; }, true);
   var host = null, root = null, card = null, current = null, seq = 0;
 
   window.addEventListener('mousemove', function (e) {
-    mouse.x = e.clientX; mouse.y = e.clientY;
-    if (altDown && !e.altKey) altDown = false; // Alt was released outside the page
+    mouse.x = e.clientX; mouse.y = e.clientY; pointerIn = true;
+    if (altDown && !e.altKey && !altRelayed) altDown = false; // Alt was released outside the page
     if (altDown) schedule(260);
   }, { capture: true, passive: true });
   window.addEventListener('contextmenu', function (e) { ctx.x = e.clientX; ctx.y = e.clientY; }, true);
@@ -134,7 +141,13 @@
     hoverTimer = setTimeout(function () {
       if (!altDown) return;
       var w = wordAt(mouse.x, mouse.y);
-      if (w && (!current || current.text.toLowerCase() !== w.text.toLowerCase())) lookup(w.text, w.rect);
+      if (!w) return;
+      if (!CFG.lookup) {
+        // switched off for this site: say so once, with a way back, instead of silently ignoring Alt
+        if (SITE_OFF && !offHinted) { offHinted = true; post({ t: 'lookup-off' }); }
+        return;
+      }
+      if (!current || current.text.toLowerCase() !== w.text.toLowerCase()) lookup(w.text, w.rect);
     }, delay);
   }
 
@@ -178,7 +191,11 @@
     else if (m.t === 'cosmetic-css' && m.selectors) addHiding(m.selectors);
     else if (m.t === 'fog') { var n = fog(); post({ t: 'fog-done', n: n }); }
     else if (m.t === 'dark') setDark(!!m.on);
-    else if (m.t === 'cfg') { CFG.lookup = !!m.lookup && !OURS; CFG.dbl = !!m.dbl; if ('gestures' in m) GEST = m.gestures || null; }
+    else if (m.t === 'cfg') { CFG.lookup = !!m.lookup && !OURS; SITE_OFF = !!m.siteOff && !OURS; CFG.dbl = !!m.dbl; if ('gestures' in m) GEST = m.gestures || null; }
+    else if (m.t === 'alt') {
+      if (m.down && (CFG.lookup || SITE_OFF) && pointerIn && !document.hasFocus()) { altDown = true; altRelayed = true; schedule(380); }
+      else if (!m.down && altRelayed) { altDown = false; altRelayed = false; clearTimeout(hoverTimer); }
+    }
     else if (m.t === 'theme') setTheme(m.value, m.accent, m.onAccent);
     else if (m.t === 'dim') dim(!!m.on);
     else if (m.t === 'tr-inplace') { if (m.on) trStart(m.to); else trStop(); }
@@ -504,6 +521,34 @@
   if (!OURS) document.addEventListener('play', function (e) {
     if (e.target && e.target.tagName === 'VIDEO' && !window.__sidearmHasVideo) { window.__sidearmHasVideo = 1; post({ t: 'hasvideo' }); }
   }, true);
+
+  // ───────────── YouTube ads (0.8): mute, jump to the end, press Skip ─────────────
+  // Filter lists can't stop these (they come from the same servers as the video), so with Sidearm's own blocker
+  // the page script deals with them in the player instead. uBlock Origin Lite handles them itself, so this is off then.
+
+  if (CFG.ytAds && /(^|\.)youtube\.com$/.test(location.hostname)) (function () {
+    var mutedByUs = false, skipped = 0, told = false;
+    setInterval(function () {
+      if (document.hidden) return;
+      var player = document.querySelector('.html5-video-player');
+      if (!player) return;
+      var video = player.querySelector('video');
+      if (player.classList.contains('ad-showing') || player.classList.contains('ad-interrupting')) {
+        if (video) {
+          if (!video.muted) { video.muted = true; mutedByUs = true; }
+          if (isFinite(video.duration) && video.duration > 0 && video.currentTime < video.duration - 0.2) {
+            try { video.currentTime = video.duration - 0.1; } catch (e) {}
+          }
+        }
+        var skip = player.querySelector('.ytp-ad-skip-button, .ytp-ad-skip-button-modern, .ytp-skip-ad-button, button[id^="skip-button"]');
+        if (skip) { skip.click(); skipped++; }
+        if (!told) { told = true; post({ t: 'yt-ad' }); }
+      } else if (mutedByUs && video) {
+        mutedByUs = false;
+        video.muted = false; // your own mute (Alt+M) is the tab's, not the video's, so it stays as it was
+      }
+    }, 400);
+  })();
 
   // ───────────── translation in place: the words change, the page stays the real site ─────────────
   // Text goes to the shell in batches (it asks Google Translate); originals are kept so it can switch back.

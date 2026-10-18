@@ -78,6 +78,10 @@ namespace Sidearm
         public string translateMode { get; set; }  // proxy (Google's translate.goog copy of the page) or inplace
         public string videoBounds { get; set; }    // where the video pop-out was last: "x,y,w,h"
         public bool preferDark { get; set; }
+        public bool updateCheck { get; set; }      // 0.8: ask GitHub once a day whether there's a newer Sidearm
+        public string lastUpdateCheck { get; set; } // when that last happened (UTC, ISO 8601)
+        public bool snapEdges { get; set; }        // 0.8: a dropped window jumps to a screen edge within 24 px
+        public bool youtubeAds { get; set; }       // 0.8: skip YouTube's video ads (Sidearm's own blocker)
         public int defaultsVersion { get; set; }
         public int windowX { get; set; }
         public int windowY { get; set; }
@@ -133,6 +137,7 @@ namespace Sidearm
             translateMode = "proxy";
             videoBounds = "";
             preferDark = true;
+            updateCheck = true; lastUpdateCheck = ""; snapEdges = true; youtubeAds = true;
             defaultsVersion = 0; // a file that lacks this key predates 0.2 and gets the new prefixes added
             windowX = windowY = windowWidth = windowHeight = -1;
         }
@@ -272,6 +277,7 @@ namespace Sidearm
             if (s.currency == null || !System.Text.RegularExpressions.Regex.IsMatch(s.currency, "^[A-Z]{3}$")) s.currency = "UAH";
             if (s.translateMode != "inplace") s.translateMode = "proxy";
             if (s.videoBounds == null) s.videoBounds = "";
+            if (s.lastUpdateCheck == null) s.lastUpdateCheck = "";
             if (s.defaultsVersion < 2) AddV2Bangs(s.bangs);
             if (s.defaultsVersion < 3 && s.claudeOpenIn == "tab") s.claudeOpenIn = "app"; // 0.2.0 wrote "tab" by mistake
             if (s.defaultsVersion < 4) s.middleClickGlance = true; // new in 0.4
@@ -353,6 +359,13 @@ namespace Sidearm
         public static Dictionary<string, object> Parse(string json)
         {
             try { return serializer.Deserialize<Dictionary<string, object>>(json); }
+            catch (Exception) { return null; }
+        }
+
+        /// <summary>Any JSON value: objects come back as dictionaries, arrays as object[]; null if it doesn't parse.</summary>
+        public static object ParseAny(string json)
+        {
+            try { return serializer.DeserializeObject(json); }
             catch (Exception) { return null; }
         }
 

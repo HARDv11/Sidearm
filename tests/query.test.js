@@ -27,4 +27,17 @@ console.log(Q.resolve('t sitrep',cfg).url); console.log(Q.resolve('t приві�
 console.log(Q.resolve('w treaty of westphalia',cfg).url);
 console.log(JSON.stringify(Q.bangSuggestions('w', cfg.bangs)), JSON.stringify(Q.bangSuggestions('w ', cfg.bangs)));
 console.log(Q.prettyNumber(1234567.891), Q.resolve('5 ft in cm',cfg).label);
-console.log(fail ? fail+' failures' : 'all '+cases.length+' passed');
+// 0.8: notes and the wrong-layout fix ([input, kind, note text or fix (null = no fix)])
+const v08 = [
+ ['n buy potions','note','buy potions'], ['note call Vlad','note','call Vlad'], ['н купити зілля','note','купити зілля'],
+ ['нотатка подзвонити','note','подзвонити'], ['n','search',null], ['нщгегиу','search','youtube'], ['нщгегиуюсщь','search','youtube.com'],
+ ['путіршт','search','genshin'], ['рщнщдфи','search','hoyolab'], ['ghbdsn','search','привіт'], ['kfcrf','search','ласка'],
+ ['привіт','search',null], ['текст','search',null], ['угу','search',null], ['hello','search',null], ['reddit','search',null],
+ ['Ліга закон','search',null], ['genshin impact','search',null],
+];
+for (const [inp, kind, val] of v08) {
+  const r = Q.resolve(inp, cfg);
+  const got = kind === 'note' ? r.text : (r.fix || null);
+  if (r.kind !== kind || got !== val) { fail++; console.log('FAIL', JSON.stringify(inp), '→', JSON.stringify(r)); }
+}
+console.log(fail ? fail+' failures' : 'all '+(cases.length+v08.length)+' passed');

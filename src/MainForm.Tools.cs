@@ -42,9 +42,10 @@ namespace Sidearm
                 quickSleep.Stop();
                 await EnsureQuick();
                 if (quick == null) return;
+                quick.Place(S.quickPosition); // show the window first, then wake its view (see NudgeAfterShow)
                 SetViewVisible(quick.View, true);
                 Resume(quick.View);
-                quick.Summon(S.quickPosition);
+                quick.Present();
                 Rates.RefreshIfOld();
             }
             catch (Exception ex) { Log.Error("Quick bar", ex); }
@@ -56,7 +57,7 @@ namespace Sidearm
             await EnsureInitialized();
             if (env == null) return;
             quick = new QuickBar(FrameColor);
-            quick.ForegroundIsOurs = () => WebViewPids().Contains(Native.ForegroundProcessId());
+            quick.ForegroundIsOurs = IsForegroundOurs; // Sidearm's own windows count too, not only the engine's
             quick.Message += OnQuickMessage;
             quick.VisibleChanged += (s, e) => { if (quick != null && !quick.Visible) { quickSleep.Stop(); quickSleep.Start(); } };
             var h = quick.Handle;
@@ -114,6 +115,9 @@ namespace Sidearm
                         break;
                     case "timer":
                         OnTimerMessage(m); // the bar says "Timer set" and closes itself
+                        break;
+                    case "note":
+                        AppendNote(Json.Str(m, "text"), false); // the bar says "Noted" and closes itself
                         break;
                     case "esc":
                         quick.Dismiss(false);
@@ -412,6 +416,7 @@ namespace Sidearm
             // Sidearm's own lists cost ~30 MB: build them only while they're the blocker
             if (Ublock.Loaded && want) { if (Adblock.Engine != null) { Adblock.Engine = null; GC.Collect(); Log.Info("Sidearm's filter engine off: uBlock Origin Lite is blocking"); } }
             else if (Adblock.Engine == null) Adblock.Start();
+            RefreshInjection(); // the page script's YouTube ad skipper is only for Sidearm's own blocker
             PushTabs();
             PushSettingsSnapshot();
             if (want && !Ublock.Loaded) Toast("uBlock Origin Lite didn't start, so Sidearm's own blocker is on. Details in Settings", null, null);

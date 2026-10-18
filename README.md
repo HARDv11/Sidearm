@@ -17,7 +17,7 @@ You need Windows 10 or 11 with the Microsoft Edge WebView2 Runtime (Windows 11 a
 
 **Install:** unzip the archive and run `Sidearm.exe`. It lives in the tray (the crosshair icon). Windows may show a SmartScreen warning because the program isn't signed: "More info" → "Run anyway".
 
-**Update:** quit Sidearm (right-click the tray icon → "Quit Sidearm"), then either unzip the new version over the old folder, or into a new folder. In a new folder, Sidearm finds the earlier copy and offers to bring over your sign-ins, tabs and settings.
+**Update:** from 0.8 on, Sidearm checks this page once a day and offers an Update button when a new version is out. It downloads the shared zip, checks it against GitHub's checksum, swaps the files in and restarts; your `data` folder is never touched. By hand: quit Sidearm (right-click the tray icon → "Quit Sidearm"), then unzip the new version over the old folder, or into a new folder. In a new folder, Sidearm finds the earlier copy and offers to bring over your sign-ins, tabs and settings.
 
 > ⚠️ The `data` folder next to `Sidearm.exe` holds your sign-ins. Never send it to anyone.
 
@@ -33,7 +33,7 @@ You need Windows 10 or 11 with the Microsoft Edge WebView2 Runtime (Windows 11 a
 | **Hold Alt over a word** | Meaning, Wikipedia and translation |
 | **Prefixes** | `w` Wikipedia, `y` YouTube, `t` translator, `a` your AI, `c` Claude… |
 
-Also: ad blocking, reader view, "clear fog" (overlays and paywall pop-ups), mouse gestures, sound off by default, clean links without trackers, your own color and grain, Ukrainian and English.
+Also: notes and pinned sites on the start page (`n` + text in the bar adds a note), a fix for text typed in the wrong keyboard layout, ad blocking (YouTube ads skipped too), reader view, "clear fog" (overlays and paywall pop-ups), mouse gestures, sound off by default, clean links without trackers, your own color and grain, Ukrainian and English.
 
 The full list of commands is on Sidearm's start page, in the "Field manual" section.
 
@@ -87,7 +87,7 @@ The result is in `build/Sidearm/`. Layout:
 
 **Встановлення:** розпакуйте архів і запустіть `Sidearm.exe`. Він живе в треї (іконка-приціл). Windows може показати попередження SmartScreen, бо програма не підписана: «Додаткові відомості» → «Усе одно запустити».
 
-**Оновлення:** закрийте Sidearm (правий клік по іконці в треї → «Вийти з Sidearm»), потім розпакуйте нову версію або поверх старої папки, або в нову папку. У новій папці Sidearm знайде попередню копію й запропонує перенести входи в акаунти, вкладки й налаштування.
+**Оновлення:** починаючи з 0.8, Sidearm раз на день перевіряє цю сторінку й пропонує кнопку «Оновити», коли виходить нова версія. Він завантажує спільний zip, звіряє його з контрольною сумою GitHub, замінює файли й перезапускається; папка `data` лишається недоторканою. Вручну: закрийте Sidearm (правий клік по іконці в треї → «Вийти з Sidearm»), потім розпакуйте нову версію поверх старої папки або в нову папку. У новій папці Sidearm знайде попередню копію й запропонує перенести входи в акаунти, вкладки й налаштування.
 
 > ⚠️ Папка `data` поруч із `Sidearm.exe` містить ваші входи в акаунти. Нікому її не надсилайте.
 
@@ -103,7 +103,7 @@ The result is in `build/Sidearm/`. Layout:
 | **Затиснути Alt над словом** | Значення, Вікіпедія й переклад |
 | **Префікси** | `w` Вікіпедія, `y` YouTube, `t` перекладач, `a` ваш ШІ, `c` Claude… |
 
-А ще: блокування реклами, режим читання, «прибрати туман» (оверлеї й вікна з підписками), жести мишею, вимкнений за замовчуванням звук, чисті посилання без трекерів, власний колір і зернистість, українська й англійська.
+А ще: нотатки й закріплені сайти на стартовій сторінці (`n` + текст у рядку додає нотатку), виправлення тексту, набраного не в тій розкладці, блокування реклами (і пропуск реклами на YouTube), режим читання, «прибрати туман» (оверлеї й вікна з підписками), жести мишею, вимкнений за замовчуванням звук, чисті посилання без трекерів, власний колір і зернистість, українська й англійська.
 
 Повний список команд є на стартовій сторінці Sidearm, у розділі «Польовий довідник».
 

@@ -47,7 +47,12 @@
         : { type: 'timer', tag: '\u23F1', label: T('Start a ' + r.display + ' timer'), sub: r.label || 'A chime when it ends', seconds: r.seconds, name: r.label });
       else if (r.kind === 'bang') items.push({ type: 'go', tag: r.key, label: r.query, sub: r.name, url: r.url, text: t });
       else if (r.kind === 'url') items.push({ type: 'go', tag: 'Go', label: r.host, sub: 'Open address', url: r.url, text: t });
+      else if (r.kind === 'note') items.push({ type: 'note', tag: '\u270E', label: r.text, sub: 'Add to notes', text: r.text });
       else items.push({ type: 'go', tag: 'Web', label: r.query, sub: engineName(), url: r.url, text: t });
+      if (r.fix) {
+        var fixIt = { type: 'fix', tag: '\u2328', label: r.fix, sub: 'Typed in the other keyboard layout?', text: r.fix };
+        if (Q.resolve(r.fix, cfg).kind === 'url') items.unshift(fixIt); else items.push(fixIt);
+      }
       if (r.url) items.push({ type: 'zen', tag: 'Out', label: T('Open in ' + browserName), sub: 'Ctrl + Enter', url: r.url, text: t });
       Q.bangSuggestions(text, cfg.bangs).slice(0, 3).forEach(function (b) { items.push({ type: 'bang', tag: b.key, label: b.name, sub: 'then your search', key: b.key }); });
       var low = t.toLowerCase();
@@ -72,7 +77,7 @@
       var hint = node('span', 'hint');
       if (on) {
         hint.appendChild(kbd('Enter'));
-        hint.appendChild(document.createTextNode(' ' + T(it.type === 'copy' ? 'copy' : it.type === 'timer' ? (it.cancel ? 'stop' : 'start') : it.type === 'bang' ? 'pick' : it.type === 'zen' ? 'open' : 'open')));
+        hint.appendChild(document.createTextNode(' ' + T(it.type === 'copy' ? 'copy' : it.type === 'timer' ? (it.cancel ? 'stop' : 'start') : it.type === 'bang' ? 'pick' : it.type === 'note' ? 'save' : it.type === 'fix' ? 'use' : 'open')));
       }
       row.appendChild(hint);
       row.addEventListener('mousedown', function (e) { e.preventDefault(); });
@@ -109,6 +114,15 @@
       copiedTimer = setTimeout(function () { reset(); send({ op: 'esc' }); }, 600);
       return;
     }
+    if (it.type === 'note') {
+      send({ op: 'note', text: it.text });
+      el.inline.hidden = false;
+      el.inline.textContent = '\u270E ' + T('Noted');
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(function () { reset(); send({ op: 'esc' }); }, 600);
+      return;
+    }
+    if (it.type === 'fix') { el.input.value = it.text; build(); var f = items[0]; if (f && f.type !== 'fix' && f.type !== 'recent') run(f, newTab, out); return; }
     if (it.text) addRecent(it.text);
     if (it.type === 'zen' || out) { send({ op: 'zen', url: it.url, private: false }); reset(); return; }
     if (it.type === 'go') { send({ op: 'go', url: it.url, newTab: !!newTab }); reset(); }
@@ -148,6 +162,16 @@
   }
   if (window.ResizeObserver) new ResizeObserver(layout).observe(el.qb);
 
+  // the bar leans a little toward the pointer while it's over it, and an accent glow follows it
+  el.qb.addEventListener('animationend', function () { el.qb.classList.remove('unfurl'); });
+  el.qb.addEventListener('mousemove', function (e) {
+    var r = el.qb.getBoundingClientRect(), dx = (e.clientX - r.left) / r.width - 0.5;
+    el.qb.style.setProperty('--mx', Math.round(e.clientX - r.left) + 'px');
+    el.qb.style.setProperty('--lean', (dx * 4).toFixed(2) + 'px');
+    el.qb.classList.add('hover');
+  });
+  el.qb.addEventListener('mouseleave', function () { el.qb.classList.remove('hover'); el.qb.style.setProperty('--lean', '0px'); });
+
   function setPlaceholder() {
     el.input.placeholder = T('Search, 2+2, 100 usd, 5 ft in cm, timer 5m…');
   }
@@ -169,6 +193,11 @@
       el.input.value = '';
       build();
       el.input.focus();
+      // the bar stretches out from the pointer; the contents follow from the same spot
+      if (typeof m.ox === 'number') el.qb.style.setProperty('--ox', m.ox + 'px');
+      el.qb.classList.remove('unfurl'); void el.qb.offsetWidth; el.qb.classList.add('unfurl');
+      // an animation frame only comes for a view that really paints: tell the shell it isn't a blank box
+      requestAnimationFrame(function () { requestAnimationFrame(function () { send({ op: 'painted' }); }); });
     }
   });
 

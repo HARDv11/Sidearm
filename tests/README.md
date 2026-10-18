@@ -11,13 +11,14 @@ Needs `node`, Mono (`mcs`, `mono`) and the build tools from `build.sh`. The UI t
 
 | File | What it checks |
 | --- | --- |
-| `query.test.js` | Prefixes, calculator, units, URL detection (45 cases) |
+| `query.test.js` | Prefixes, calculator, units, URL detection, notes and the wrong-layout fix (63 cases) |
 | `money-timer.test.js` | `100 usd`, `50 € in pln`, `timer 5 min boss`, `timer off`… (28 cases) |
 | `shell/CleanLinksTest.cs` | Tracking parameters removed, redirects unwrapped |
 | `shell/TranslateUrlTest.cs` | `TranslateUrl` / `OriginalOf` round trips |
 | `shell/LangTest.cs` | Ukrainian lookups through `Lang.T` (prints pairs; `?` marks are only the console's encoding) |
 | `shell/ShellTest.cs` | Settings validation, `VideoEmbedUrl`, `TranslateBatch` with a fake Google, NBU/ER-API parsing, the chime WAV, `Clock` |
 | `shell/MigrateTest.cs` | A new copy finds an older `data` folder and copies it without caches or logs |
+| `shell/UpdaterTest.cs` | Version compare, reading GitHub's release JSON (foreign links refused), SHA-256 check, zip paths that escape, swapping files in with `.old` copies, rollback after failed starts, confirm |
 | `ui/ui-test.js` | Strip (tabs patched in place: zero DOM mutations over 20 busy updates), palette (money, timer), shield panel, quick bar, settings sections, in-place translation in `inject.js`, field manual, `pop.html` |
 
 Screenshots of the UI test are the real check for layout: look at them after any CSS change.

@@ -15,8 +15,9 @@ cp build/Sidearm/Sidearm.exe build/Sidearm/*.dll "$W"/
 echo "== clean links"
 mcs -nologo src/CleanLinks.cs tests/shell/CleanLinksTest.cs -out:"$W/CleanLinksTest.exe" 2>&1 | grep -v warning || true
 mono "$W/CleanLinksTest.exe" | tail -1
-for t in TranslateUrlTest LangTest ShellTest MigrateTest; do
-  mcs -nologo -r:"$W/Sidearm.exe" -r:System.Core.dll tests/shell/$t.cs -out:"$W/$t.exe" 2>&1 | grep -v warning || true
+for t in TranslateUrlTest LangTest ShellTest MigrateTest UpdaterTest; do
+  mcs -nologo -r:"$W/Sidearm.exe" -r:System.Core.dll -r:System.IO.Compression.dll -r:System.IO.Compression.FileSystem.dll -r:System.Web.Extensions.dll \
+    tests/shell/$t.cs -out:"$W/$t.exe" 2>&1 | grep -v warning || true
 done
 cd "$W"
 echo "== translate URLs";  mono TranslateUrlTest.exe | tail -1
@@ -27,6 +28,8 @@ O=mig/Downloads/Sidearm-0.6.1-share-uk/Sidearm/data
 mkdir -p $O/webview/EBWebView/Default/Cache $O/webview/EBWebView/Default/Network mig/Downloads/Sidearm-0.7.0-share-uk/Sidearm/data
 echo '{}' > $O/settings.json; echo c > $O/webview/EBWebView/Default/Network/Cookies; echo j > $O/webview/EBWebView/Default/Cache/x; echo l > $O/sidearm.log
 mono MigrateTest.exe
+echo "== updates (check, unpack, swap, roll back)"
+mono UpdaterTest.exe
 cd "$ROOT"
 if [ "$1" = "ui" ]; then
   echo "== UI (headless Chromium)"

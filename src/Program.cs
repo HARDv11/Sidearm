@@ -12,15 +12,15 @@ using Microsoft.Web.WebView2.Core;
 [assembly: AssemblyDescription("Sidearm pocket browser: an always-on-top browser window you call up mid-game.")]
 [assembly: AssemblyCompany("Sidearm project")]
 [assembly: AssemblyCopyright("Copyright © 2026 Sidearm project")]
-[assembly: AssemblyVersion("0.7.0.0")]
-[assembly: AssemblyFileVersion("0.7.0.0")]
-[assembly: AssemblyInformationalVersion("0.7.0")]
+[assembly: AssemblyVersion("0.8.0.0")]
+[assembly: AssemblyFileVersion("0.8.0.0")]
+[assembly: AssemblyInformationalVersion("0.8.0")]
 
 namespace Sidearm
 {
     internal static class Program
     {
-        public const string Version = "0.7.0 · Quickdraw";
+        public const string Version = "0.8.0 · Resupply";
         public const string Tagline = "Switching to your sidearm is faster than opening a browser.";
 
         public static string AppDir, DataDir, UiDir;
@@ -29,6 +29,7 @@ namespace Sidearm
         private static int Main(string[] args)
         {
             AppDir = AppDomain.CurrentDomain.BaseDirectory.TrimEnd('\\', '/');
+            WaitForOldCopy(args);
 
             bool firstInstance;
             var mutex = new Mutex(true, @"Local\Sidearm.Instance", out firstInstance);
@@ -43,6 +44,14 @@ namespace Sidearm
             Native.EnableDpiAwareness();
             DataDir = ResolveDataDir();
             Log.Init(Path.Combine(DataDir, "sidearm.log"));
+            UiDir = Path.Combine(AppDir, "ui");
+            if (Updater.OnStartup())
+            {
+                // a fresh update that keeps failing was rolled back: start the old version again
+                mutex.ReleaseMutex(); mutex.Dispose();
+                try { Process.Start(new ProcessStartInfo(Path.Combine(AppDir, "Sidearm.exe"), "--after-update " + Process.GetCurrentProcess().Id) { UseShellExecute = false }); } catch (Exception) { }
+                return 0;
+            }
             AppDomain.CurrentDomain.UnhandledException += (s, e) => Log.Error("Unhandled exception", e.ExceptionObject as Exception);
             Application.ThreadException += (s, e) => Log.Error("UI thread exception", e.Exception);
             Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
@@ -91,6 +100,20 @@ namespace Sidearm
             GC.KeepAlive(mutex);
             Log.Info("Sidearm exited");
             return 0;
+        }
+
+        /// <summary>"--after-update 1234": the copy that just installed an update is still closing; let it finish.</summary>
+        static void WaitForOldCopy(string[] args)
+        {
+            int i = Array.FindIndex(args, a => string.Equals(a, "--after-update", StringComparison.OrdinalIgnoreCase));
+            int pid;
+            if (i < 0 || i + 1 >= args.Length || !int.TryParse(args[i + 1], out pid)) return;
+            try
+            {
+                using (var old = Process.GetProcessById(pid)) old.WaitForExit(20000);
+                Thread.Sleep(800); // its browser engine closes right after it
+            }
+            catch (Exception) { } // already gone
         }
 
         /// <summary>Portable by default: a "data" folder beside the exe. Falls back to %LOCALAPPDATA%\Sidearm.</summary>

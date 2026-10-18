@@ -21,8 +21,21 @@
     </svg>
     <h1>Sidearm</h1>
     <p class="tag">Switching to your sidearm is faster than opening a browser.</p>
-    <p class="nt-scroll">Field manual below <span>&darr;</span></p>
   </section>
+
+  <section class="nt-dock" id="dock" hidden>
+    <div class="pins" id="pins" aria-label="Pinned sites"></div>
+    <div class="notes">
+      <div class="notes-head">
+        <h2>Notes</h2>
+        <span class="notes-hint"><kbd>n</kbd> + text in the bar adds a line</span>
+        <span class="notes-state" id="notesState"></span>
+      </div>
+      <textarea id="notes" spellcheck="true" rows="4" placeholder="Builds, codes, what to buy next… It saves by itself."></textarea>
+    </div>
+  </section>
+
+  <p class="nt-scroll">Field manual below <span>&darr;</span></p>
 
   <section class="manual" aria-label="Every command">
     <div class="m-head">
@@ -33,6 +46,124 @@
     <p id="nothing" class="m-none" hidden>No command matches that.</p>
   </section>
 </main>
+
+<script>
+/* 0.8: pinned sites and notes. They live in Sidearm's data folder (pins.json, notes.txt), so the page asks the shell. */
+(function () {
+  var wv = window.chrome && window.chrome.webview;
+  if (!wv) return; // opened in an ordinary browser: just the manual
+  var dock = document.getElementById('dock'), pinsBox = document.getElementById('pins');
+  var notes = document.getElementById('notes'), state = document.getElementById('notesState');
+  var MAX = 12, pins = [], got = false, dirty = false, saveTimer = 0, dragFrom = -1;
+  function T(x) { return window.SidearmI18n ? window.SidearmI18n.T(x) : x; }
+  function post(m) { try { wv.postMessage(m); } catch (e) {} }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function host(u) { try { return new URL(u).hostname.replace(/^www\./, ''); } catch (e) { return u; } }
+
+  function savePins() { post({ t: 'pins-set', list: pins }); renderPins(); }
+
+  function renderPins() {
+    pinsBox.textContent = '';
+    pins.forEach(function (p, i) {
+      var a = el('a', 'pin');
+      a.href = p.url; a.title = p.title + '\n' + host(p.url); a.draggable = true;
+      var ico = el('span', 'ico');
+      var letter = el('b', null, (p.title || host(p.url)).trim().charAt(0).toUpperCase());
+      ico.appendChild(letter);
+      if (p.icon) {
+        var img = new Image();
+        img.alt = ''; img.referrerPolicy = 'no-referrer';
+        img.onload = function () { if (img.naturalWidth > 1) { ico.classList.add('has-img'); } };
+        img.onerror = function () { img.remove(); };
+        img.src = p.icon;
+        ico.appendChild(img);
+      }
+      a.appendChild(ico);
+      var nm = el('span', 'nm', p.title); nm.dataset.raw = ''; a.appendChild(nm);
+      var x = el('button', 'x', '\u00d7'); x.type = 'button'; x.title = 'Remove from the start page';
+      x.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); pins.splice(i, 1); savePins(); });
+      a.appendChild(x);
+      a.addEventListener('dragstart', function (e) { dragFrom = i; a.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', p.url); });
+      a.addEventListener('dragend', function () { dragFrom = -1; a.classList.remove('dragging'); pinsBox.querySelectorAll('.over').forEach(function (n) { n.classList.remove('over'); }); });
+      a.addEventListener('dragover', function (e) { if (dragFrom < 0) return; e.preventDefault(); a.classList.add('over'); });
+      a.addEventListener('dragleave', function () { a.classList.remove('over'); });
+      a.addEventListener('drop', function (e) {
+        e.preventDefault();
+        if (dragFrom < 0 || dragFrom === i) return;
+        var moved = pins.splice(dragFrom, 1)[0];
+        pins.splice(i, 0, moved);
+        dragFrom = -1;
+        savePins();
+      });
+      pinsBox.appendChild(a);
+    });
+    if (pins.length < MAX) pinsBox.appendChild(addTile());
+  }
+
+  function addTile() {
+    var box = el('div', 'pin add');
+    var b = el('button', 'plus'); b.type = 'button'; b.title = 'Pin a site';
+    b.appendChild(el('span', 'ico', '+'));
+    b.appendChild(el('span', 'nm', 'Add'));
+    box.appendChild(b);
+    b.addEventListener('click', function () {
+      box.classList.add('editing');
+      var f = el('form', 'pin-form');
+      var inp = el('input'); inp.type = 'text'; inp.placeholder = 'Address, e.g. hoyolab.com'; inp.spellcheck = false; inp.autocomplete = 'off';
+      f.appendChild(inp);
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var v = inp.value.trim();
+        if (!v) { renderPins(); return; }
+        var url = /^https?:\/\//i.test(v) ? v : 'https://' + v;
+        var origin = ''; try { origin = new URL(url).origin; } catch (x) { inp.classList.add('bad'); return; }
+        pins.push({ title: '', url: url, icon: origin + '/favicon.ico' });
+        savePins();
+      });
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Escape') { e.stopPropagation(); renderPins(); } });
+      inp.addEventListener('blur', function () { setTimeout(function () { if (box.isConnected && !inp.value.trim()) renderPins(); }, 150); });
+      box.textContent = '';
+      box.appendChild(f);
+      inp.focus();
+    });
+    return box;
+  }
+
+  // notes: one free-text box, saved a moment after you stop typing
+  function fit() { notes.style.height = 'auto'; notes.style.height = Math.min(notes.scrollHeight + 2, 420) + 'px'; }
+  notes.addEventListener('input', function () {
+    dirty = true; fit();
+    state.textContent = ''; state.classList.remove('on');
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNotes, 600);
+  });
+  notes.addEventListener('blur', function () { if (dirty) { clearTimeout(saveTimer); saveNotes(); } });
+  notes.addEventListener('keydown', function (e) { if (e.key === 'Escape') e.stopPropagation(); }, true);
+  function saveNotes() {
+    dirty = false;
+    post({ t: 'notes-set', text: notes.value });
+    state.textContent = T('Saved'); state.classList.add('on');
+    setTimeout(function () { state.classList.remove('on'); }, 1400);
+  }
+  window.addEventListener('beforeunload', function () { if (dirty) saveNotes(); });
+
+  wv.addEventListener('message', function (e) {
+    var m = e.data;
+    if (!m || typeof m !== 'object') return;
+    if (m.t === 'pins') {
+      pins = (m.list || []).slice(0, MAX);
+      if (!pinsBox.querySelector('.pin-form input:focus')) renderPins();
+      reveal();
+    } else if (m.t === 'notes') {
+      // a line added from the bar: take it, unless you're typing here right now
+      if (!(dirty && document.activeElement === notes)) { notes.value = m.text || ''; dirty = false; fit(); }
+      reveal();
+    }
+  });
+  function reveal() { if (!got) { got = true; dock.hidden = false; fit(); } }
+  post({ t: 'home-get' });
+})();
+</script>
 
 <script>
 (function () {
@@ -66,6 +197,7 @@
       ['Click the game', 'Holsters by itself, unless pinned'],
       ['Pin button', 'Stay on screen while you play'],
       ['Drag the top strip', 'Move the window; it snaps to screen edges'],
+      ['Shift while you let go', 'Drop it exactly there, no snapping (Settings → General switches snapping off)'],
       ['Drag the thin edge', 'Resize'],
       ['Ctrl + scroll on the strip', 'Window opacity'],
       ['Tray icon click', 'Draw · right-click: Settings, Start with Windows, Quit']
@@ -76,6 +208,7 @@
       ['Shift + Enter', 'Open in a new Sidearm tab'],
       ['Ctrl + Enter', 'Open in ' + BR],
       ['timer 5m', 'Starts a timer without opening Sidearm'],
+      ['n …', 'Adds a line to your notes without opening Sidearm'],
       ['Esc|click elsewhere', 'Close it; focus goes back to your game'],
       ['Settings → Quick bar', 'Its key, and where it appears']
     ] : [['Settings → Quick bar', 'The quick bar is off; turn it on there']]],
@@ -93,6 +226,8 @@
       ['100 usd|50 € in pln|1000 грн в usd|$20', 'Money at the National Bank of Ukraine rate; Enter copies it'],
       ['timer 5m|timer 1:30 boss|10 min timer', 'A timer: a chime and a notification when it ends, even while holstered'],
       ['timer off|click the ⏱ in the strip', 'Stop timers'],
+      ['n …|note …|н …|нотатка …', 'Adds a line, stamped with the time, to the notes on this page'],
+      ['нщгегиу|ghbdsn', 'Typed in the wrong keyboard layout? The bar offers the same keys the other way'],
       ['example.com', 'Opens the address directly']
     ]],
     ['Prefixes', null],
@@ -111,6 +246,9 @@
       ['Alt + ←|Alt + →', 'Back / forward'],
       ['F5', 'Reload'],
       ['Home|Alt + Home|Click SIDEARM', 'This start page (Home works anywhere you\'re not typing)'],
+      ['Right-click a page → Pin to start page', 'Its tile goes on this page, under the scope (up to 12)'],
+      ['+ tile on this page', 'Pin a site by its address; drag tiles to reorder, × removes one'],
+      ['Notes on this page', 'One box that saves itself, kept in the data folder (amnesia mode leaves it alone)'],
       ['Ctrl + scroll|Ctrl + +|Ctrl + −', 'Zoom, remembered per site (the % pill resets it)'],
       ['Ctrl + 0', 'Reset zoom'],
       ['Ctrl + F', 'Find in page'],
@@ -119,6 +257,7 @@
       ['Alt + P|Shield → Pop out|right-click a video', 'Pop out the video: its own small always-on-top window that stays up while you play'],
       ['Right-click the pop-out\'s title', 'Its opacity'],
       ['Settings → Pages → Blocker', 'uBlock Origin Lite instead of Sidearm\'s own lists (experimental)'],
+      ['YouTube ads', 'Muted, skipped to the end and Skip pressed (Settings → Pages)'],
       ['Shield button', 'This site: ads on/off, reader, auto-fog, force dark, look-up, zoom'],
       ['Gear button', 'All settings'],
       ['F12', 'Developer tools']
@@ -142,7 +281,8 @@
       ['Settings → Feel', 'Amnesia mode: every holster wipes history, cookies and recent searches']
     ]],
     ['Words', [
-      ['Hold Alt over a word', 'Meaning, Wikipedia summary, Ukrainian translation'],
+      ['Hold Alt over a word', 'Meaning, Wikipedia summary, Ukrainian translation (works right after drawing, no click needed)'],
+      ['Shield → Word look-up', 'Switch it off or on for one site; Alt on a switched-off site offers to turn it back on'],
       ['Double-click a word', 'Same pop-up'],
       ['Select text, hold Alt over it', 'Look up a whole phrase'],
       ['Right-click a selection', 'Look up · Ask ' + AI + ' about it'],
@@ -174,6 +314,10 @@
     ]],
     ['Look', [
       ['Settings → Look', 'Your color, a two-color gradient, tint and grain']
+    ]],
+    ['Updates', [
+      ['Update button in a toast', 'Downloads the new version from GitHub, checks it, and restarts into it'],
+      ['Settings → General → Updates', 'Check now, see what\'s new, or switch the daily check off']
     ]]
   ];
 

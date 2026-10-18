@@ -372,7 +372,13 @@
         : { type: 'timer', tag: '\u23F1', label: TT('Start a ' + r.display + ' timer'), sub: r.label || 'A chime and a notification when it ends, even while holstered', seconds: r.seconds, name: r.label });
       else if (r.kind === 'bang') items.push({ type: 'go', tag: r.key, label: r.query, sub: r.name, url: r.url, text: trimmed });
       else if (r.kind === 'url') items.push({ type: 'go', tag: 'Go', label: r.host, sub: 'Open address', url: r.url, text: trimmed });
+      else if (r.kind === 'note') items.push({ type: 'note', tag: '\u270E', label: r.text, sub: 'Add to your notes on the start page', text: r.text });
       else items.push({ type: 'go', tag: 'Web', label: r.query, sub: engineName(), url: r.url, text: trimmed });
+      if (r.fix) {
+        // typed in the other keyboard layout: offer the same keys the other way (first, if that's an address)
+        var fixIt = { type: 'fix', tag: '\u2328', label: r.fix, sub: 'Typed in the other keyboard layout?', text: r.fix };
+        if (Q.resolve(r.fix, state.cfg).kind === 'url') items.unshift(fixIt); else items.push(fixIt);
+      }
 
       Q.bangSuggestions(text, state.cfg.bangs).slice(0, 4).forEach(function (b) {
         items.push({ type: 'bang', tag: b.key, label: b.name, sub: 'then your search', key: b.key });
@@ -420,6 +426,7 @@
         if (it.type === 'copy') { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(' copy')); }
         else if (it.type === 'bang') { hint.appendChild(kbd('Tab')); }
         else if (it.type === 'timer') { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(it.cancel ? ' stop' : ' start')); }
+        else if (it.type === 'note') { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(' save')); }
         else { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(' · ')); hint.appendChild(kbd('Shift')); hint.appendChild(document.createTextNode(' new tab')); }
       }
       row.appendChild(hint);
@@ -473,7 +480,15 @@
       return;
     }
     if (it.type === 'timer') { startTimer(it); return; }
+    if (it.type === 'note') { addNote(it.text); return; }
+    if (it.type === 'fix') { el.input.value = it.text; run(it.text, newTab); return; }
     if (it.type === 'go') go(it.url, it.text, newTab);
+  }
+  function addNote(text) {
+    send({ type: 'note', text: text });
+    closePalette();
+    el.input.value = '';
+    el.input.blur();
   }
   function startTimer(it) {
     send(it.cancel ? { type: 'timer', op: 'cancel' } : { type: 'timer', op: 'start', seconds: it.seconds, label: it.name || '' });
@@ -486,6 +501,7 @@
     var r = Q.resolve(text, state.cfg);
     if (r.kind === 'empty') return;
     if (r.kind === 'timer') { startTimer(r.cancel ? { cancel: true } : { seconds: r.seconds, name: r.label }); return; }
+    if (r.kind === 'note') { addNote(r.text); return; }
     if (r.kind === 'calc' || r.kind === 'units' || r.kind === 'money') {
       el.input.value = text;
       update(true);
@@ -872,6 +888,11 @@
         update(false);
         run(el.input.value, false);
         break;
+      case 'drawn':
+        // animation frames only run for a view that really paints: answering from one tells the shell
+        // the strip is on screen, not an empty rectangle
+        requestAnimationFrame(function () { requestAnimationFrame(function () { send({ type: 'painted' }); }); });
+        break;
       case 'holstered':
         closePalette();
         closePanel();
@@ -915,6 +936,18 @@
         if (document.activeElement === el.input) update(false);
         break;
     }
+  }
+
+  // Alt held while typing here: the shell passes it to the page under the pointer for a word look-up
+  var altRelay = false;
+  function altUp() { if (altRelay) { altRelay = false; send({ type: 'alt', down: false }); } }
+  if (!TABS_ONLY) {
+    window.addEventListener('keydown', function (e) {
+      if (e.key === 'Alt' && !e.repeat && !e.ctrlKey && !e.shiftKey && !e.metaKey) { altRelay = true; send({ type: 'alt', down: true }); }
+      else if (e.key !== 'Alt') altUp(); // Alt + a key is a shortcut, not a look-up
+    }, true);
+    window.addEventListener('keyup', function (e) { if (e.key === 'Alt') altUp(); }, true);
+    window.addEventListener('blur', altUp);
   }
 
   if (bridge) bridge.addEventListener('message', function (e) { onMessage(e.data); });

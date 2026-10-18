@@ -34,6 +34,7 @@
       holder.textContent = '';
       holder.appendChild(makeSwitch(!!S[key], function (on) { set(key, on); }));
     });
+    renderUpdate(m.update || { current: String(m.version || '').split(' ')[0], status: 'Not checked yet' });
     var auto = $('autostart');
     auto.textContent = '';
     auto.appendChild(makeSwitch(!!m.autostart, function (on) { action('autostart', { on: on }); flashSaved(); }));
@@ -218,42 +219,73 @@
   var PRESETS = [['Brass', '', ''], ['Olive', '#8fb35a', ''], ['Steel', '#6f9bd1', ''], ['Teal', '#3fb7a5', ''], ['Violet', '#9b7be0', ''],
     ['Crimson', '#d0505a', ''], ['Rose', '#e07aa6', ''], ['Sand', '#d9b98c', ''], ['Ukraine', '#0057b7', '#ffd700']];
   var swBuilt = false;
+  var DEF = '#d4a24c';
+  function T(x) { return window.SidearmI18n ? window.SidearmI18n.T(x) : x; }
   function look() { return { accent: S.accent || '', accent2: S.accent2 || '', tint: +S.tint || 0, grain: +S.grain || 0 }; }
   function preview() { if (window.SidearmLook) { SidearmLook.apply(look()); SidearmLook.save(look()); } }
+  function swatchFill(a, b) {
+    // a gradient preset is a split circle (Ukraine: blue over yellow, like the flag)
+    return b ? 'linear-gradient(180deg,' + a + ' 50%,' + b + ' 50%)' : (a || DEF);
+  }
   function renderLook() {
     var box = $('swatches');
     if (!swBuilt) {
       swBuilt = true;
       PRESETS.forEach(function (p) {
         var b = el('button', 's-swatch');
-        b.title = p[0];
+        b.type = 'button';
         b.dataset.a = p[1]; b.dataset.b = p[2];
-        b.style.background = p[2] ? 'linear-gradient(135deg,' + p[1] + ' 50%,' + p[2] + ' 50%)' : (p[1] || '#d4a24c');
+        var dot = el('i', 'dot'); dot.style.background = swatchFill(p[1], p[2]);
+        b.appendChild(dot);
+        b.appendChild(el('span', 'nm', p[0]));
         b.addEventListener('click', function () {
           S.accent = p[1]; S.accent2 = p[2];
           set('accent', p[1]); set('accent2', p[2]);
-          if (p[2] && !(+S.tint)) { S.tint = 45; set('tint', 45); }
-          preview(); renderLook();
+          if (p[2] && !(+S.tint)) { S.tint = 45; set('tint', 45); syncRange('tint'); }
+          renderLook();
         });
         box.appendChild(b);
       });
     }
     box.querySelectorAll('.s-swatch').forEach(function (b) { b.classList.toggle('on', b.dataset.a === (S.accent || '') && b.dataset.b === (S.accent2 || '')); });
-    if (document.activeElement !== $('accent')) $('accent').value = S.accent || '#d4a24c';
-    if (document.activeElement !== $('accent2')) $('accent2').value = S.accent2 || '#000000';
-    $('accent2').classList.toggle('unset', !S.accent2);
-    $('clear2').hidden = !S.accent2;
+    var a = S.accent || DEF, b2 = S.accent2 || '';
+    if (document.activeElement !== $('accent')) $('accent').value = a;
+    if (document.activeElement !== $('accent2')) $('accent2').value = b2 || a;
+    $('tile1').querySelector('.chip').style.background = a;
+    $('tile2').querySelector('.chip').style.background = b2 || 'transparent';
+    $('tile2').classList.toggle('unset', !b2);
+    $('hex1v').textContent = a.toUpperCase();
+    $('hex2v').textContent = b2 ? b2.toUpperCase() : T('None');
+    $('clear2').hidden = !b2;
+    if (document.activeElement !== $('hex')) { $('hex').value = a.toUpperCase(); $('hex').classList.remove('bad'); }
     preview();
   }
-  $('accent').addEventListener('input', function () { S.accent = this.value; preview(); });
+  function syncRange(k) {
+    var r = document.querySelector('[data-range="' + k + '"]');
+    if (!r) return;
+    r.value = S[k];
+    var o = r.parentNode.querySelector('output'); if (o) o.textContent = S[k] + '%';
+  }
+  $('accent').addEventListener('input', function () { S.accent = this.value; renderLook(); });
   $('accent').addEventListener('change', function () { S.accent = this.value; set('accent', this.value); renderLook(); });
-  $('accent2').addEventListener('input', function () { S.accent2 = this.value; preview(); });
+  $('accent2').addEventListener('input', function () { S.accent2 = this.value; renderLook(); });
   $('accent2').addEventListener('change', function () {
     S.accent2 = this.value; set('accent2', this.value);
-    if (!(+S.tint)) { S.tint = 45; set('tint', 45); }
+    if (!(+S.tint)) { S.tint = 45; set('tint', 45); syncRange('tint'); }
     renderLook();
   });
-  $('clear2').addEventListener('click', function () { S.accent2 = ''; set('accent2', ''); renderLook(); });
+  $('clear2').addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); S.accent2 = ''; set('accent2', ''); renderLook(); });
+  $('hex').addEventListener('input', function () {
+    var v = this.value.trim(); if (v && v[0] !== '#') v = '#' + v;
+    var ok = /^#[0-9a-f]{6}$/i.test(v);
+    this.classList.toggle('bad', !ok && v.length > 1);
+    if (ok) { S.accent = v.toLowerCase(); renderLook(); }
+  });
+  $('hex').addEventListener('change', function () {
+    var v = this.value.trim(); if (v && v[0] !== '#') v = '#' + v;
+    if (/^#[0-9a-f]{6}$/i.test(v)) set('accent', v.toLowerCase());
+    this.value = (S.accent || DEF).toUpperCase(); this.classList.remove('bad');
+  });
   ['tint', 'grain'].forEach(function (k) {
     var r = document.querySelector('[data-range="' + k + '"]');
     r.addEventListener('input', function () { S[k] = +r.value; preview(); });
@@ -342,6 +374,19 @@
 
   // ───────────── buttons ─────────────
 
+  function renderUpdate(u) {
+    var st = $('updStatus');
+    st.textContent = (u.current ? 'Sidearm ' + u.current + '  \u00b7  ' : '') + T(u.status || 'Not checked yet');
+    st.classList.toggle('bad', /^(Update failed|Couldn)/.test(u.status || ''));
+    $('updNow').hidden = !u.can;
+    $('updNow').disabled = !!u.busy;
+    $('updNow').textContent = T('Update to ' + (u.latest || ''));
+    var hasNotes = !!(u.latest && (u.notes || u.title));
+    $('updNotes').hidden = !hasNotes;
+    if (hasNotes) { $('updTitle').textContent = u.title || u.latest; $('updText').textContent = u.notes || ''; }
+  }
+  $('updCheck').addEventListener('click', function () { action('updateCheck'); $('updStatus').textContent = T('Checking GitHub…'); });
+  $('updNow').addEventListener('click', function () { this.disabled = true; action('updateNow'); $('updStatus').textContent = T('Downloading…'); });
   $('updateFilters').addEventListener('click', function () { action('updateFilters'); $('filters').textContent = 'Updating filter lists…'; });
   $('ublockOpen').addEventListener('click', function () { action('ublockOpen'); });
   $('ublockUpdate').addEventListener('click', function () { action('ublockUpdate'); $('ublockStatus').textContent = 'Downloading uBlock Origin Lite…'; });

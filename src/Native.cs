@@ -189,6 +189,13 @@ namespace Sidearm
             return (int)pid;
         }
 
+        /// <summary>The foreground app's process name, for log lines ("explorer", "GenshinImpact"); "?" if unknown.</summary>
+        public static string ForegroundProcessName()
+        {
+            try { return System.Diagnostics.Process.GetProcessById(ForegroundProcessId()).ProcessName; }
+            catch (Exception) { return "?"; }
+        }
+
         /// <summary>Parses "Alt+`", "Ctrl+Shift+Space", "Alt+F1" into RegisterHotKey arguments.</summary>
         public static bool ParseHotkey(string text, out uint mods, out uint vk)
         {

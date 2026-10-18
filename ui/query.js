@@ -273,7 +273,10 @@
     return {
       value: v, display: shown, copy: v.toFixed(2),
       label: fmtMoney(n) + ' ' + from + ' = ' + shown,
-      note: (config.rates.source && config.rates.source !== 'NBU' ? 'Market rate' : 'NBU rate') + (config.rates.date ? ' · ' + config.rates.date : '')
+      // the NBU sets Monday's rate on Friday: it's the rate *for* that day, not the day it was fetched
+      note: config.rates.source && config.rates.source !== 'NBU'
+        ? 'Market rate' + (config.rates.date ? ' · ' + config.rates.date : '')
+        : config.rates.date ? 'NBU rate for ' + String(config.rates.date).replace(/^(\d{1,2}\.\d{1,2})\.\d{4}$/, '$1') : 'NBU rate'
     };
   }
 
@@ -322,6 +325,65 @@
     return (h ? h + ':' + (mm < 10 ? '0' : '') : '') + mm + ':' + (ss < 10 ? '0' : '') + ss;
   }
 
+  // ───────────── notes: "n buy potions", "нотатка подзвонити" ─────────────
+
+  function note(text) {
+    var m = /^\s*(?:n|note|н|нотатка|нотатки)\s+([\s\S]+)$/i.exec(text || '');
+    return m && m[1].trim() ? m[1].trim().slice(0, 2000) : null;
+  }
+
+  // ───────────── wrong keyboard layout: "нщгегиу" → "youtube", "ghbdsn" → "привіт" ─────────────
+
+  var EN = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`";
+  var UK = "йцукенгшщзхїфівапролджєячсмитьбю.'";
+  // the most common letter pairs in each language: real words are mostly made of them, wrong-layout text isn't
+  var EN_BI = ('th he in er an re on at en nd ti es or te of ed is it al ar st to nt ng se ha as ou io le ve co me de hi ri ro ic ne ' +
+    'ea ra ce li ch ll be ma si om ur ca el ta la ns di fo ho pe ec pr no ct us ac ot il tr ly nc et ut ss so rs un lo wa ge ie wh ' +
+    'ee wi em ad ol rt po we na ul ni ts mo ow pa im mi ai sh ir su id os iv ia am fi ci vi pl ig tu ev ld ry mp fe bl ab gh ty op ' +
+    'wo sa ay ex ke fr oo av ag if ap gr od bo sp rd do uc bu ei ov by rm ep tt oc fa ef cu rn sc gi da yo cr cl du ga qu ue ff ' +
+    'ba ey ls va um pp ua up lu go ht ru ug ds lt pi rc rr eg au ck ew mu br bi pt ak pu ui rg ib tl ny ki rk ys ob mm fu ph og ' +
+    'ms ye ud mb ip ub oi rl gu dr hr cc tw ft wn nu oy').split(' ');
+  var UK_BI = ('ст но на ен пр ни ко ра ов ро по ть не ан ал ка то ер ор ли ре ва ла ві ні ти ки ог од ос ін ри ди ви де ле ий ак ат ' +
+    'ом за та ми ел ве ою ся ці ль ук ус ую ьк ьн ед ад ез ем ір ис ит їн ає аї ій им ин йо кр ку лі лю ля ма ме мо му нн ну об ол ' +
+    'он оп от па пе пи пі ру са се си сі ск сл сп су сь те ті тр ту ує уд ул ум ун ур хо це ча че чи чн ша ще юч як ям ят ас ив ія ' +
+    'ди дн дo зн ва ве во ві га го гр да до дя ен ес єм жи зв зі ка кі ко ла ле ли ло лу ль ме мі мн нa ні но нь ов ог од ой ок ' +
+    'ом ор ос ою пл ра ри ро рі са ст та ти тн то ту ть уж хі цi ча ши юр яв ят').split(' ');
+  function bigramScore(word, set) {
+    var w = word.toLowerCase().replace(/[^a-zа-яіїєґ']/g, ''), n = 0, hit = 0;
+    for (var i = 0; i + 1 < w.length; i++) { n++; if (set.indexOf(w.substr(i, 2)) >= 0) hit++; }
+    return n ? hit / n : 0;
+  }
+
+  /** The same keys in the other layout, if that reads clearly better. Returns the fixed text or null. */
+  function layoutFix(text) {
+    var t = (text || '').trim();
+    if (t.length < 3 || t.length > 60) return null;
+    var cyr = /[а-яіїєґ]/i.test(t), lat = /[a-z]/i.test(t);
+    if (cyr === lat) return null; // mixed or neither: leave it alone
+    var from = cyr ? UK : EN, to = cyr ? EN : UK, out = '';
+    for (var i = 0; i < t.length; i++) {
+      var ch = t[i], low = ch.toLowerCase(), k = from.indexOf(low);
+      if (ch === '.' || /[\s\d\-:]/.test(ch)) { out += ch; continue; } // a typed dot stays a dot
+      if (k < 0) return null;
+      var c = to[k];
+      out += ch !== low ? c.toUpperCase() : c;
+    }
+    if (out === t) return null;
+    if (cyr && asUrl(out)) return out; // "нщгегиу.сщь" → youtube.com
+    var words = out.split(/\s+/).filter(Boolean), orig = t.split(/\s+/).filter(Boolean);
+    var good = 0, bad = 0;
+    words.forEach(function (w, i) {
+      var letters = w.replace(/[^a-zа-яіїєґ]/gi, '');
+      if (letters.length < 4) return;
+      // a real word has vowels: "текст" in the wrong layout gives "ntrcn", which has none
+      var vowels = (letters.match(cyr ? /[aeiouy]/gi : /[аеєиіїоуюя]/gi) || []).length;
+      if (vowels / letters.length < 0.25) { bad++; return; }
+      var sNew = bigramScore(w, cyr ? EN_BI : UK_BI), sOld = bigramScore(orig[i] || '', cyr ? UK_BI : EN_BI);
+      if (sNew >= 0.4 && sNew > sOld + 0.2) good++; else bad++;
+    });
+    return good > 0 && good >= bad ? out : null;
+  }
+
   // ───────────── addresses ─────────────
 
   var TLDS = ('com org net io dev app ai gg tv me co uk ua de fr it es pl nl eu us ca au jp cn in ru by kz lt lv ee cz sk ' +
@@ -358,7 +420,8 @@
   /**
    * resolve('w treaty of westphalia', config) →
    *   { kind: 'bang', key: 'w', name: 'Wikipedia (EN)', query: 'treaty of westphalia', url: '…' }
-   * kinds: calc · units · bang · url · search · empty
+   * kinds: calc · units · money · timer · note · bang · url · search · empty
+   * A search typed in the wrong keyboard layout also carries fix: the same keys in the other layout.
    */
   function resolve(text, config) {
     var t = (text || '').trim();
@@ -374,6 +437,8 @@
         return { kind: 'bang', key: key, name: bangs[key].name || key, query: rest, url: fill(bangs[key].url, rest) };
       }
     }
+    var nt = note(t);
+    if (nt) return { kind: 'note', text: nt };
     var tm = timer(t);
     if (tm && tm.cancel) return { kind: 'timer', cancel: true, display: 'off' };
     if (tm) return { kind: 'timer', seconds: tm.seconds, label: tm.label, display: clock(tm.seconds) };
@@ -385,7 +450,8 @@
     if (c !== null) return { kind: 'calc', value: c, copy: plainNumber(c), display: prettyNumber(c) };
     var url = asUrl(t);
     if (url) return { kind: 'url', url: url, host: url.replace(/^https?:\/\//i, '').split('/')[0] };
-    return { kind: 'search', query: t, url: fill(searchUrl, t) };
+    var fix = layoutFix(t);
+    return fix ? { kind: 'search', query: t, url: fill(searchUrl, t), fix: fix } : { kind: 'search', query: t, url: fill(searchUrl, t) };
   }
 
   /** Bang keys that start with what's typed so far (for suggestions while typing the first word). */
@@ -398,7 +464,7 @@
   }
 
   var api = {
-    resolve: resolve, calc: calc, evaluate: evaluate, units: units, asUrl: asUrl, money: money, timer: timer, clock: clock,
+    resolve: resolve, note: note, layoutFix: layoutFix, calc: calc, evaluate: evaluate, units: units, asUrl: asUrl, money: money, timer: timer, clock: clock,
     bangSuggestions: bangSuggestions, bareBang: bareBang, plainNumber: plainNumber, prettyNumber: prettyNumber
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

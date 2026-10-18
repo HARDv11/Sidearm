@@ -240,6 +240,9 @@ namespace Sidearm
             var v = tab.View;
             tab.View = null;
             tab.Loading = false;
+            // the next view starts at 100%: forget which site's zoom was applied, or it won't be applied again
+            tab.ZoomHost = null;
+            tab.ExpectZoom = 1.0;
             if (v == null) return;
             try { if (v.Parent != null) v.Parent.Controls.Remove(v); v.Dispose(); }
             catch (Exception ex) { Log.Error("Dispose view", ex); }
@@ -364,6 +367,8 @@ namespace Sidearm
 
         async Task CreateView(Tab tab, bool navigate)
         {
+            tab.ZoomHost = null;
+            tab.ExpectZoom = 1.0;
             await EnsureEnvironment();
             var v = tab.IsGlance ? null : TakeSpare(); // a ready engine skips the slow part
             if (v == null)
@@ -505,6 +510,12 @@ namespace Sidearm
             var m = Json.Parse(e.WebMessageAsJson);
             string t = Json.Str(m, "t");
             if (t == null) return;
+            // the start page keeps its notes and pinned sites through the shell; web pages can't touch them
+            if (t == "home-get" || t.StartsWith("notes-", StringComparison.Ordinal) || t.StartsWith("pins-", StringComparison.Ordinal))
+            {
+                if (IsStartPage(e.Source)) OnHomeMessage(tab, m);
+                return;
+            }
             // our own settings page may change settings; web pages never can
             if (t.StartsWith("settings-", StringComparison.Ordinal))
             {
@@ -513,6 +524,7 @@ namespace Sidearm
             }
             // any tab, even in the background, may ask for its hiding rules or report a result
             if (t == "cosmetic") { OnCosmeticRequest(tab, m); return; }
+            if (t == "yt-ad") { if (!ytAdLogged) { ytAdLogged = true; Log.Info("YouTube: an ad came up; muted and skipped it"); } return; }
             if (t == "reader-size")
             {
                 double size = Json.Num(m, "size", 0);
@@ -548,6 +560,12 @@ namespace Sidearm
                 if (!Json.Bool(m, "silent")) Toast(n > 0 ? "Cleared " + n + " overlay" + (n == 1 ? "" : "s") + " and scroll locks" : "No fog found on this page", null, null);
             }
             else if (t == "lookup" && S.lookup) DoLookup(tab, (int)Json.Num(m, "id", 0), Json.Str(m, "text"));
+            else if (t == "lookup-off" && S.lookup)
+            {
+                string site = Sites.Key(SiteHostOf(tab));
+                Log.Info("Look-up: Alt held on " + site + ", where word look-up is switched off; offered to turn it on");
+                Toast("Word look-up is off for " + site, "Turn on", "lookupOn");
+            }
             else if (t == "claude" || t == "search")
             {
                 // opens a tab, so throttle it: a page can't spam tabs
@@ -560,11 +578,14 @@ namespace Sidearm
             }
         }
 
+        bool lookupLogged, ytAdLogged;
+
         async void DoLookup(Tab tab, int id, string text)
         {
             try
             {
                 if (string.IsNullOrWhiteSpace(text) || !Lookup.Allow()) return;
+                if (!lookupLogged) { lookupLogged = true; Log.Info("Look-up working: first word this session"); }
                 var result = await Lookup.Run(text);
                 result = new Dictionary<string, object>(result);
                 result["t"] = "lookup-result";
@@ -625,6 +646,7 @@ namespace Sidearm
                     {
                         add.Add(MenuItem("Open page in " + BrowserName, () => SendToBrowser(pageUrl, false)));
                         add.Add(MenuItem("Copy page link", () => CopyLink(pageUrl)));
+                        add.Add(MenuItem("Pin to start page", () => PinPage(tab)));
                     }
                 }
                 // the built-in "Copy link" copies the tracking junk too; ours copies the clean link
@@ -683,6 +705,20 @@ namespace Sidearm
             catch (Exception ex) { Log.Error("Save zoom", ex); }
         }
 
+        /// <summary>Zoom belongs to the whole site (wiki.hoyolab.com and www.hoyolab.com share it). Entries saved
+        /// per host before 0.8 still win for their host.</summary>
+        bool TryGetZoom(string host, out double z)
+        {
+            return SiteZoom.TryGetValue(host, out z) || SiteZoom.TryGetValue(Sites.Key(host), out z);
+        }
+
+        void RememberZoom(string host, double z)
+        {
+            SiteZoom.Remove(host);
+            SiteZoom[Sites.Key(host)] = z;
+            SaveSiteZoom();
+        }
+
         static string HostOf(string url)
         {
             Uri u;
@@ -701,11 +737,7 @@ namespace Sidearm
                 {
                     // you changed it (Ctrl + scroll, Ctrl + +/-): remember it for this site
                     string host = HostOf(tab.Url);
-                    if (host.Length > 0)
-                    {
-                        SiteZoom[host] = z;
-                        SaveSiteZoom();
-                    }
+                    if (host.Length > 0) RememberZoom(host, z);
                     tab.ExpectZoom = z;
                 }
                 if (tab == active) PushTabs();
@@ -729,11 +761,12 @@ namespace Sidearm
         {
             if (tab.View == null) return;
             string host = tab.IsNewTab ? "" : HostOf(tab.Url);
-            if (host == tab.ZoomHost) return;
-            tab.ZoomHost = host;
+            string site = Sites.Key(host);
+            if (site == tab.ZoomHost) return;
+            tab.ZoomHost = site;
             double z = 1.0;
             double saved;
-            if (host.Length > 0 && SiteZoom.TryGetValue(host, out saved)) z = saved;
+            if (host.Length > 0 && TryGetZoom(host, out saved)) z = saved;
             else if (host.Length > 0 && S.autoZoom) z = AutoZoom();
             SetZoom(tab, z);
         }
@@ -759,7 +792,7 @@ namespace Sidearm
         {
             if (active == null || active.View == null) return;
             string host = HostOf(active.Url);
-            if (host.Length > 0 && !active.IsNewTab) { SiteZoom[host] = 1.0; SaveSiteZoom(); }
+            if (host.Length > 0 && !active.IsNewTab) RememberZoom(host, 1.0);
             SetZoom(active, 1.0);
         }
 
