@@ -23,10 +23,11 @@ There is no .NET SDK or NuGet in the build, so it uses Mono's C# compiler agains
 
 1. **Build.** `./build.sh` in the project root runs `mcs -sdk:4.5 -platform:x64 -target:winexe` over `src/*.cs` and copies the DLLs, `ui/` and `assets/README.txt` into `build/Sidearm/`. A clean build prints only `built build/Sidearm`. It needs `mcs` (Mono), `llvm-rc` and Python 3 with `pefile`.
 2. **Test.** `tests/run.sh` (add `ui` for headless screenshots; see Testing below).
-3. **Package.** Every release ships as two zips, each with a `Sidearm/` folder at the root:
+3. **Package.** `tools/release.sh` puts the release files in `build/release/` (see Releases and updates below):
    - `Sidearm-<ver>.zip`: the build plus `source/` (`src`, `assets`, `build.sh`);
-   - `Sidearm-<ver>-share-uk.zip`: the build plus a `defaults.json` holding `{"language":"uk"}`, so it starts in Ukrainian.
-4. **Never include `data\`** in a zip or a commit: it holds cookies and sign-ins.
+   - `Sidearm-<ver>-share-uk.zip`: the build plus a `defaults.json` holding `{"language":"uk"}`, so it starts in Ukrainian. This is the one the updater installs;
+   - `Sidearm-<ver>-share-uk.zip.sha256`: its checksum.
+4. **Never include `data\`** in a zip or a commit: it holds cookies and sign-ins. The script refuses if it finds one.
 
 **Read the log after a release.** `data\sidearm.log` logs one line per event, and every version logs its name on the `starting` line, so you can tell which build produced which errors.
 
@@ -82,6 +83,7 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `ui/sidearm.css`, `ui/fonts/` | The whole theme; NV Bitter, NV Jost, Sourcerer (OFL) |
 | `assets/` | Icon, exe config, README.txt (copied next to the exe), the version-resource template `sidearm.rc.in`, the app manifest, `pe_stamp.py` |
 | `seed/` | Old starter filter lists, kept for offline development only: not shipped since 0.7 (`Adblock` still uses `seed\` beside the exe if one exists) |
+| `tools/` | `uk_add.py` (add Ukrainian strings), `release.sh` (the zips and checksum for a GitHub release) |
 
 ## Message protocol
 
@@ -221,6 +223,35 @@ WebView2 doesn't run on Linux, so the shell itself is only exercised on Windows.
 Run everything with `tests/run.sh` (add `ui` for the headless screenshots; see `tests/README.md`). The stub is three lines: `window.__sent=[]`, a `postMessage` that pushes into it, and `addEventListener` that keeps listeners so a test can feed `init` / `tabs` / `room` messages. For `inject.js`, replace `/*SIDEARM_CFG*/{}` with a test config before adding it as an init script.
 
 After shipping, the log is the only window into Windows behavior. New features should log one line when they do something meaningful: ghost on and off, sends to a browser, page load timing, and so on.
+
+## Releases and updates
+
+Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. Nothing reaches users until a release is published: pushing to `main` alone changes nothing for them.
+
+**How a copy finds an update.** Once a day (and from Settings → General → Updates → Check now) `Updater.Check` asks `https://api.github.com/repos/HARDv11/Sidearm/releases/latest`. GitHub answers with the newest *published* release; drafts and pre-releases are skipped. With no release at all, Settings says "No releases on GitHub yet" and nothing else happens. If the release's tag is newer than the running version, the next draw shows "Sidearm X is out" with an Update button, and Settings shows the release notes.
+
+**What the updater needs from a release.** Get any of these wrong and the update is refused or never offered:
+
+| Part | Must be | Why |
+| --- | --- | --- |
+| Tag | `v<ver>`, the same version as `AssemblyInformationalVersion` in `src/Program.cs` (for example `v0.8.1`) | Compared number by number with the running version |
+| Release type | Published, **not** a draft or a pre-release | `releases/latest` ignores the others (a pre-release is a way to hold one back) |
+| Asset | `Sidearm-<ver>-share-uk.zip` with `Sidearm/Sidearm.exe` and `Sidearm/ui/` inside | The only file the updater installs; the download link must be on `github.com/HARDv11/Sidearm/releases/download/` |
+| Checksum | GitHub's own `digest` for the asset, or an attached `Sidearm-<ver>-share-uk.zip.sha256` | No checksum, no install. Attach the `.sha256` anyway: it's the fallback |
+| Notes | The release description | Shown in Settings → General → Updates (first 4,000 characters), so write them for users |
+
+**Copies older than 0.8 have no updater.** Anyone on 0.7.0 or earlier installs 0.8.x by hand once (unzip over the old folder, or into a new one and let it bring the data over). From then on, every published release reaches them by itself within a day of their next draw.
+
+**Checklist for a release**
+
+1. `./build.sh`, then `tests/run.sh ui`. Everything passes; look at the screenshots in `tests/ui/shots/`.
+2. Bump the version: the three assembly attributes and `Version` in `src/Program.cs`, the title of `assets/README.txt` and its "NEW IN" section, and the changelog below. Build again.
+3. `tools/release.sh`. Upload the files it made, not older copies: each `.sha256` belongs to its own zip.
+4. Commit and push to `main`.
+5. On GitHub: Releases → Draft a new release → tag `v<ver>` on `main` → title `Sidearm <ver> · <name>` → notes → attach the three files → **Publish release**. (A Claude session can push code but gets 403 when it tries to create a release, so this step is done by hand. A GitHub Actions workflow that builds and publishes on a tag push would remove it; not tried yet.)
+6. Check that it arrived: in a running copy, Settings → General → Updates → Check now should say the new version is out. Then read `data\sidearm.log` after the update: `Update <ver>: … files swapped in`, then `Updated from <old> to <ver>` about 30 s after the restart.
+
+**If an update goes wrong on someone's PC.** Install failures put every file back and leave `data\update\failed.txt`, which the old version shows as a tray message at its next start. A new version that fails to start twice in a row is rolled back by itself (its log says `didn't start properly twice`). Replaced files sit next to the new ones as `*.old` until the new version has run for 30 s.
 
 ## Changelog
 
