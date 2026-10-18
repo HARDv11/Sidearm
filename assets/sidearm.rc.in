@@ -1,0 +1,31 @@
+1 ICON "sidearm.ico"
+1 24 "Sidearm.exe.manifest.out"
+1 VERSIONINFO
+FILEVERSION @VERSIONC@
+PRODUCTVERSION @VERSIONC@
+FILEFLAGSMASK 0x3F
+FILEFLAGS 0x0
+FILEOS 0x40004
+FILETYPE 0x1
+FILESUBTYPE 0x0
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "000004b0"
+    BEGIN
+      VALUE "Comments", "An always-on-top browser window you call up mid-game."
+      VALUE "CompanyName", "Sidearm project"
+      VALUE "FileDescription", "Sidearm pocket browser"
+      VALUE "FileVersion", "@VERSION4@"
+      VALUE "InternalName", "Sidearm"
+      VALUE "LegalCopyright", "Copyright \251 2026 Sidearm project"
+      VALUE "OriginalFilename", "Sidearm.exe"
+      VALUE "ProductName", "Sidearm"
+      VALUE "ProductVersion", "@VERSION@"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0, 1200
+  END
+END

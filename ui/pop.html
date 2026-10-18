@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<script>try{if(localStorage.getItem('sidearm.lang')==='uk')document.write('<script src="lang/uk.js"><\/script>')}catch(e){}</script>
+<script src="i18n.js"></script>
+<title>Sidearm video</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  iframe { position: fixed; inset: 0; width: 100%; height: 100%; border: 0; }
+  .msg { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #bbb; font: 14px system-ui, sans-serif; }
+  .open { position: fixed; right: 8px; top: 8px; z-index: 2; opacity: 0; transition: opacity .15s; background: rgba(0,0,0,.6); color: #eee;
+          border: 1px solid rgba(255,255,255,.25); border-radius: 6px; font: 12px system-ui, sans-serif; padding: 4px 9px; cursor: pointer; }
+  body:hover .open { opacity: 1; }
+</style>
+</head>
+<body>
+<script>
+/* The pop-out's player for YouTube and Twitch: their own embedded players, which want to be inside a page
+   (YouTube refuses embeds with no referrer, Twitch wants to know the parent site). */
+(function () {
+  var q = new URLSearchParams(location.search), src = null, page = null;
+  var t = Math.max(0, parseInt(q.get('t') || '0', 10) || 0);
+  if (/^[A-Za-z0-9_-]{11}$/.test(q.get('yt') || '')) {
+    src = 'https://www.youtube.com/embed/' + q.get('yt') + '?autoplay=1&playsinline=1&rel=0&start=' + t;
+    page = 'https://www.youtube.com/watch?v=' + q.get('yt') + (t ? '&t=' + t + 's' : '');
+  } else if (/^\d+$/.test(q.get('twv') || '')) {
+    var h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60;
+    src = 'https://player.twitch.tv/?video=v' + q.get('twv') + '&parent=' + location.hostname + '&autoplay=true&time=' + h + 'h' + m + 'm' + s + 's';
+    page = 'https://www.twitch.tv/videos/' + q.get('twv');
+  } else if (/^[a-z0-9_]{3,25}$/.test(q.get('twc') || '')) {
+    src = 'https://player.twitch.tv/?channel=' + q.get('twc') + '&parent=' + location.hostname + '&autoplay=true';
+    page = 'https://www.twitch.tv/' + q.get('twc');
+  }
+  var wv = window.chrome && window.chrome.webview;
+  if (!src) { document.body.innerHTML = '<div class="msg">No video to play</div>'; return; }
+  var f = document.createElement('iframe');
+  f.src = src;
+  f.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen';
+  f.allowFullscreen = true;
+  f.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+  document.body.appendChild(f);
+  var b = document.createElement('button');
+  b.className = 'open';
+  b.textContent = 'Open in Sidearm';
+  b.title = 'Close this window and open the video page in a Sidearm tab';
+  b.onclick = function () { if (wv) wv.postMessage({ t: 'open', url: page }); };
+  document.body.appendChild(b);
+  window.addEventListener('keydown', function (e) { if (e.key === 'Escape' && wv) wv.postMessage({ t: 'esc' }); });
+})();
+</script>
+</body>
+</html>

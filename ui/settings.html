@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('sidearm.theme')||'dark'}catch(e){}</script>
+<script src="look.js"></script>
+<script>try{if(localStorage.getItem('sidearm.lang')==='uk')document.write('<script src="lang/uk.js"><\/script>')}catch(e){}</script>
+<script src="i18n.js"></script>
+<title>Sidearm settings</title>
+<link rel="stylesheet" href="sidearm.css">
+</head>
+<body class="settings">
+<header class="s-top">
+  <div class="s-title"><svg viewBox="0 0 24 24" class="s-ret"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v6M12 16.5v6M1.5 12h6M16.5 12h6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>Settings</div>
+  <nav class="s-nav">
+    <a href="#general">General</a><a href="#quick">Quick bar</a><a href="#look">Look</a><a href="#search">Search</a><a href="#pages">Pages</a><a href="#lookup">Look-up</a>
+    <a href="#links">Links</a><a href="#translate">Translation</a><a href="#gestures">Gestures</a><a href="#feel">Feel</a><a href="#ai">Ask AI</a><a href="#wiki">Wikipedia</a><a href="#sites">Sites</a><a href="#speed">Speed</a><a href="#advanced">Advanced</a>
+  </nav>
+  <span id="saved" class="s-saved">Saved</span>
+</header>
+
+<main class="s-main">
+  <section id="general">
+    <h2>General</h2>
+    <div class="s-row"><div><b>Draw / holster hotkey</b><small>Works over borderless games. Click, then press the keys.</small></div><button data-hotkey="hotkey" class="s-key">Alt + `</button></div>
+    <div class="s-row"><div><b>Holster when you click back into the game</b><small>Off keeps Sidearm up until you holster it.</small></div><span data-bool="autoHolster"></span></div>
+    <div class="s-row"><div><b>Pin on screen</b><small>Stay visible while the game has focus.</small></div><span data-bool="pinned"></span></div>
+    <div class="s-row"><div><b>Start with Windows</b><small>Starts holstered in the tray.</small></div><span id="autostart"></span></div>
+    <div class="s-row"><div><b>Theme</b><small>System follows Windows' light/dark setting.</small></div>
+      <span class="s-seg" data-choice="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="system">System</button></span></div>
+    <div class="s-row"><div><b>Tabs</b><small>Above the page or along the bottom of the window.</small></div>
+      <span class="s-seg" data-choice="tabsPosition"><button data-v="top">Top</button><button data-v="bottom">Bottom</button></span></div>
+    <div class="s-row"><div><b>Language</b><small>Sidearm's own menus and pages. Websites stay in their language (use Translate for those).</small></div>
+      <span class="s-seg" data-choice="language"><button data-v="en" data-raw>English</button><button data-v="uk" data-raw>Українська</button></span></div>
+    <div class="s-row"><div><b>Window opacity</b><small>Also: Ctrl + scroll on the top strip.</small></div><span class="s-range"><input type="range" min="30" max="100" step="5" data-range="opacity" data-scale="100"><output></output></span></div>
+    <div class="s-row"><div><b>Interface size</b><small>The strip, bar, tabs and menus.</small></div><span class="s-range"><input type="range" min="85" max="150" step="5" data-range="uiScale" data-scale="100"><output></output></span></div>
+  </section>
+
+  <section id="quick">
+    <h2>Quick bar</h2>
+    <div class="s-row"><div><b>Quick bar</b><small>A small command bar that pops up over anything, a game included, with its own key. Sums, units, money and timers answer right in it; Enter opens the result in Sidearm.</small></div><span data-bool="quickBar"></span></div>
+    <div class="s-row"><div><b>Quick bar key</b><small id="quickKeyHint">Works all the time, even while Sidearm is holstered.</small></div><button data-hotkey="quickHotkey" class="s-key">Alt + Space</button></div>
+    <div class="s-row"><div><b>Where it appears</b><small>At the mouse pointer, or always in the same place.</small></div>
+      <span class="s-seg" data-choice="quickPosition"><button data-v="mouse">At the mouse</button><button data-v="center">Middle</button><button data-v="top">Top</button></span></div>
+  </section>
+
+  <section id="look">
+    <h2>Look</h2>
+    <div class="s-row"><div><b>Color</b><small>The accent everywhere in Sidearm, and the window border.</small></div>
+      <span class="s-swatches" id="swatches"></span></div>
+    <div class="s-row"><div><b>Your own colors</b><small>Pick one, or two for a gradient across the top strip.</small></div>
+      <span class="s-colors"><input type="color" id="accent" title="Color"><input type="color" id="accent2" title="Second color for a gradient"><button id="clear2" class="link">No gradient</button></span></div>
+    <div class="s-row"><div><b>Tint the strip</b><small>How much of your color the top strip takes.</small></div><span class="s-range"><input type="range" min="0" max="100" step="5" data-range="tint" data-scale="1"><output></output></span></div>
+    <div class="s-row"><div><b>Grain</b><small>A fine film-grain texture over Sidearm's own pages, like Zen. Websites stay untouched.</small></div><span class="s-range"><input type="range" min="0" max="100" step="5" data-range="grain" data-scale="1"><output></output></span></div>
+    <div class="s-preview" id="lookPreview"><span class="pv-brand">◎ SIDEARM</span><span class="pv-bar">Search Google…</span><span class="pv-badge">W</span><span class="pv-sw"><i></i></span></div>
+  </section>
+
+  <section id="search">
+    <h2>Search</h2>
+    <div class="s-row"><div><b>Search engine</b><small>Plain text in the bar goes here.</small></div>
+      <select id="engine">
+        <option value="https://www.google.com/search?q={q}">Google</option>
+        <option value="https://duckduckgo.com/?q={q}">DuckDuckGo</option>
+        <option value="https://www.bing.com/search?q={q}">Bing</option>
+        <option value="https://search.brave.com/search?q={q}">Brave Search</option>
+        <option value="https://www.startpage.com/do/search?q={q}">Startpage</option>
+        <option value="custom">Custom…</option>
+      </select>
+    </div>
+    <div class="s-row"><div><b>Convert money into</b><small id="ratesStatus">Type “100 usd” or “50 € in pln” in the bar.</small></div>
+      <select data-select="currency">
+        <option value="UAH" data-raw>UAH ₴</option><option value="USD" data-raw>USD $</option><option value="EUR" data-raw>EUR €</option>
+        <option value="PLN" data-raw>PLN zł</option><option value="GBP" data-raw>GBP £</option><option value="CZK" data-raw>CZK</option><option value="CAD" data-raw>CAD</option>
+      </select></div>
+    <div class="s-row" id="customRow" hidden><div><b>Custom search URL</b><small>Use {q} where the search goes.</small></div><input type="text" id="customUrl" class="s-text wide" spellcheck="false"></div>
+    <div class="s-block">
+      <div class="s-blockhead"><b>Prefixes</b><small>Type a prefix, a space, then your search. {q} = your words · {tl}/{sl} = translation direction (uk ↔ en).</small></div>
+      <table class="s-table" id="bangs"><thead><tr><th>Prefix</th><th>Name</th><th>URL</th><th></th></tr></thead><tbody></tbody></table>
+      <div class="s-actions"><button id="addBang" class="pbtn">Add prefix</button><button id="saveBangs" class="pbtn accent">Save prefixes</button><button id="resetBangs" class="link">Reset to defaults</button></div>
+    </div>
+  </section>
+
+  <section id="pages">
+    <h2>Pages</h2>
+    <div class="s-row"><div><b>Block ads &amp; trackers</b><small id="filters">…</small></div><span data-bool="adblock"></span></div>
+    <div class="s-row"><div><b>Blocker<span class="s-exp">Experimental</span></b><small>Sidearm's own lists, or uBlock Origin Lite working inside the engine. uBlock is downloaded from its official GitHub when you pick it.</small></div>
+      <span class="s-seg" data-choice="blocker"><button data-v="sidearm">Sidearm</button><button data-v="ublock" data-raw>uBlock</button></span></div>
+    <div class="s-row" id="ublockRow" hidden><div><b>uBlock Origin Lite</b><small id="ublockStatus" class="s-status">…</small></div>
+      <span class="s-btns"><button id="ublockOpen" class="pbtn">Its settings</button><button id="ublockUpdate" class="pbtn">Update</button></span></div>
+    <div class="s-row" id="listsRow"><div><b>Filter lists</b><small>EasyList, EasyPrivacy, EasyList Cookie. Updated weekly by themselves.</small></div><button id="updateFilters" class="pbtn">Update now</button></div>
+    <div class="s-row"><div><b>Prefer dark pages</b><small>Sites with a dark theme use it. Force dark per site in the page panel.</small></div><span data-bool="preferDark"></span></div>
+    <div class="s-row"><div><b>Zoom out on narrow windows</b><small>First visit to a site only; your own zoom always wins.</small></div><span data-bool="autoZoom"></span></div>
+    <div class="s-row"><div><b>“Narrow” means below</b><small>Width in pixels at 100% scaling.</small></div><span class="s-num"><input type="number" min="400" max="2000" step="50" data-num="autoZoomBelow"> px</span></div>
+    <div class="s-row"><div><b>Tab limit</b><small>The oldest tab is recycled past this.</small></div><span class="s-num"><input type="number" min="1" max="10" data-num="maxTabs"> tabs</span></div>
+  </section>
+
+  <section id="lookup">
+    <h2>Word look-up</h2>
+    <div class="s-row"><div><b>Hold Alt over a word</b><small>Meaning, Wikipedia summary, and a Ukrainian translation.</small></div><span data-bool="lookup"></span></div>
+    <div class="s-row"><div><b>Also on double-click</b><small>Double-clicking a word normally just selects it.</small></div><span data-bool="lookupOnDoubleClick"></span></div>
+  </section>
+
+  <section id="links">
+    <h2>Links &amp; browser</h2>
+    <div class="s-row"><div><b>Middle-click opens a Glance</b><small>Off: middle-click opens a background tab, like other browsers. Alt + click always Glances.</small></div><span data-bool="middleClickGlance"></span></div>
+    <div class="s-row"><div><b>Open pages in</b><small id="browserStatus">Ctrl + Enter, gestures and the right-click menu send pages here.</small></div>
+      <select data-select="sendTo">
+        <option value="auto">Zen if installed, else your default</option>
+        <option value="default">Your default browser</option>
+        <option value="zen">Zen</option><option value="chrome">Chrome</option><option value="edge">Edge</option>
+        <option value="firefox">Firefox</option><option value="brave">Brave</option><option value="opera">Opera</option><option value="vivaldi">Vivaldi</option>
+      </select></div>
+    <div class="s-row"><div><b>Browser location</b><small>Only if Sidearm can't find it: the full path to its .exe.</small></div><input type="text" data-text="browserPath" class="s-text wide" placeholder="Leave empty to find it" spellcheck="false"></div>
+  </section>
+
+  <section id="translate">
+    <h2>Translation</h2>
+    <div class="s-row"><div><b>Translate pages into</b><small>Alt + T or the shield panel translates the page you're on (through Google Translate).</small></div>
+      <select data-select="translateTo">
+        <option value="uk">Ukrainian</option><option value="en">English</option><option value="de">German</option><option value="pl">Polish</option>
+        <option value="fr">French</option><option value="es">Spanish</option><option value="it">Italian</option><option value="cs">Czech</option>
+        <option value="pt">Portuguese</option><option value="ja">Japanese</option><option value="zh-CN">Chinese</option><option value="ko">Korean</option><option value="tr">Turkish</option>
+      </select></div>
+    <div class="s-row"><div><b>How pages are translated<span class="s-exp">Experimental</span></b><small>Page proxy: Google's translated copy of the page (links stay translated, sign-ins may not work). In place: the words change on the real page, so you stay signed in (a bold or linked word inside a sentence is translated on its own).</small></div>
+      <span class="s-seg" data-choice="translateMode"><button data-v="proxy">Page proxy</button><button data-v="inplace">In place</button></span></div>
+    <div class="s-row"><div><b>Pages in other languages</b><small>Offer: a Translate button appears once per site. Always: translated as soon as they open.</small></div>
+      <span class="s-seg" data-choice="autoTranslate"><button data-v="off">Leave</button><button data-v="offer">Offer</button><button data-v="always">Always</button></span></div>
+    <div class="s-row"><div><b>Languages you read</b><small>Never offered for translation. Codes, comma separated: uk, en, pl…</small></div><input type="text" data-text="neverTranslate" class="s-text" spellcheck="false"></div>
+  </section>
+
+  <section id="gestures">
+    <h2>Mouse gestures</h2>
+    <div class="s-row"><div><b>Gestures</b><small>Hold the right mouse button and flick about 40 px. A plain right-click still opens the menu.</small></div><span data-bool="gestures"></span></div>
+    <div class="s-gest" id="gestList"></div>
+  </section>
+
+  <section id="feel">
+    <h2>Feel</h2>
+    <div class="s-row"><div><b>Ghost mode key</b><small>See-through and click-through, so a map or guide stays up while you play. Only taken while Sidearm is on screen.</small></div><button data-hotkey="ghostHotkey" class="s-key">Alt + G</button></div>
+    <div class="s-row"><div><b>Ghost opacity</b><small>How see-through ghost mode is.</small></div><span class="s-range"><input type="range" min="20" max="90" step="5" data-range="ghostOpacity" data-scale="100"><output></output></span></div>
+    <div class="s-row"><div><b>Mute new pages</b><small>No surprise audio over game comms. Alt + M or the speaker unmutes a tab.</small></div><span data-bool="muteByDefault"></span></div>
+    <div class="s-row"><div><b>Clean links</b><small>Copied links lose utm_*, fbclid, gclid and other trackers; Google and Facebook redirects are unwrapped.</small></div><span data-bool="cleanLinks"></span></div>
+    <div class="s-row"><div><b>Amnesia mode</b><small>Every holster wipes history, cookies, site data and recent searches, and tabs aren't kept between sessions. Signs you out of everything.</small></div><span data-bool="amnesia"></span></div>
+  </section>
+
+  <section id="ai">
+    <h2>Ask AI</h2>
+    <div class="s-row"><div><b>Your AI</b><small>The a prefix, right-click “Ask…”, and the look-up button. c, gpt and px always go to Claude, ChatGPT and Perplexity.</small></div>
+      <span class="s-seg" data-choice="aiProvider"><button data-v="claude">Claude</button><button data-v="chatgpt">ChatGPT</button><button data-v="gemini">Gemini</button><button data-v="perplexity">Perplexity</button><button data-v="copilot">Copilot</button></span>
+    </div>
+    <div class="s-row"><div><b>Opens in</b><small>“Desktop app” opens the Claude and Gemini apps; the others open in a tab. Gemini takes no question from outside, so it's copied for you: press Ctrl + V.</small></div>
+      <span class="s-seg" data-choice="claudeOpenIn"><button data-v="app">Desktop app</button><button data-v="tab">Sidearm tab</button><button data-v="browser">Browser</button></span>
+    </div>
+  </section>
+
+  <section id="wiki">
+    <h2>Modern for Wikipedia</h2>
+    <div class="s-row"><div><b id="wikiStatus">…</b><small id="wikiHint">Sidearm loads your installed copy from Edge, Chrome, Brave, Zen or Firefox. It never ships the extension itself.</small></div>
+      <span class="s-btns"><button id="importWiki" class="pbtn accent">Import</button><button id="removeWiki" class="pbtn">Remove</button></span></div>
+    <p id="wikiMsg" class="s-msg" hidden></p>
+  </section>
+
+  <section id="sites">
+    <h2>Sites</h2>
+    <p class="s-note">Choices from the page panel (the shield next to the bar) and remembered zoom.</p>
+    <table class="s-table" id="siteTable"><thead><tr><th>Site</th><th>Ads</th><th>Auto-fog</th><th>Dark</th><th>Look-up</th><th>Translate</th><th>Zoom</th><th></th></tr></thead><tbody></tbody></table>
+    <p id="noSites" class="s-note" hidden>Nothing yet.</p>
+  </section>
+
+  <section id="speed">
+    <h2>Speed &amp; sleep</h2>
+    <div class="s-row"><div><b>Keep a tab ready</b><small>One blank page engine waits while Sidearm is drawn, so new tabs open instantly. About 20–30 MB, freed when you holster.</small></div><span data-bool="spareTab"></span></div>
+    <div class="s-row"><div><b>Warm start</b><small>When Sidearm starts with Windows, start its engine in the background and let it sleep, so the first draw is quick too.</small></div><span data-bool="warmStart"></span></div>
+    <p class="s-note">How long a page took, and how much of that was Sidearm, is in the shield panel under “Page load”.</p>
+    <div class="s-row"><div><b>Suspend pages after holstering</b><small>Scripts stop, memory drops.</small></div><span class="s-num"><input type="number" min="1" max="600" data-num="suspendAfterHideSeconds"> s</span></div>
+    <div class="s-row"><div><b>Unload tabs after holstered for</b><small>0 = never. They reload when you draw.</small></div><span class="s-num"><input type="number" min="0" max="1440" data-num="unloadAfterHideMinutes"> min</span></div>
+    <div class="s-row"><div><b>Background tabs sleep after</b></div><span class="s-num"><input type="number" min="5" max="3600" data-num="backgroundTabSuspendSeconds"> s</span></div>
+  </section>
+
+  <section id="advanced">
+    <h2>Advanced</h2>
+    <div class="s-row"><div><b>Turn off GPU acceleration</b><small>Less competition with your game for the GPU, more CPU use. Restart Sidearm after changing.</small></div><span data-bool="disableGpu"></span></div>
+    <div class="s-row"><div><b>Developer tools (F12)</b><small>Applies to new tabs.</small></div><span data-bool="devTools"></span></div>
+    <div class="s-row"><div><b>Data folder</b><small id="dataDir"></small></div><span class="s-btns"><button id="openData" class="pbtn">Open</button><button id="editJson" class="pbtn">Edit settings.json</button></span></div>
+  </section>
+
+  <footer class="s-about">
+    <p class="tag">Switching to your sidearm is faster than opening a browser.</p>
+    <p><span id="version"></span> · Fonts: NV Bitter, NV Jost, Sourcerer from Nico Verbruggen's eBook Fonts (OFL) · Reader: Mozilla Readability (Apache 2.0) · Filters: EasyList authors (GPLv3 / CC BY-SA) · uBlock Origin Lite: Raymond Hill (GPLv3), downloaded only if you pick it · Exchange rates: National Bank of Ukraine</p>
+  </footer>
+</main>
+
+<script src="settings.js"></script>
+</body>
+</html>

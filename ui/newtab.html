@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New tab</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('sidearm.theme')||'dark'}catch(e){}</script>
+<script src="look.js"></script>
+<script>try{if(localStorage.getItem('sidearm.lang')==='uk')document.write('<script src="lang/uk.js"><\/script>')}catch(e){}</script>
+<script src="i18n.js"></script>
+<link rel="stylesheet" href="sidearm.css">
+</head>
+<body class="newtab">
+<main class="nt">
+  <section class="nt-hero">
+    <svg class="scope" viewBox="0 0 100 100" aria-hidden="true">
+      <circle class="ring2" cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="1"/>
+      <circle cx="50" cy="50" r="28" fill="none" stroke="currentColor" stroke-width="3"/>
+      <path d="M50 6v26M50 68v26M6 50h26M68 50h26" stroke="currentColor" stroke-width="3"/>
+      <circle cx="50" cy="50" r="3" fill="currentColor"/>
+      <path class="sweep" d="M50 50L50 4A46 46 0 0 1 82.5 17.5z" fill="currentColor" opacity=".08"/>
+    </svg>
+    <h1>Sidearm</h1>
+    <p class="tag">Switching to your sidearm is faster than opening a browser.</p>
+    <p class="nt-scroll">Field manual below <span>&darr;</span></p>
+  </section>
+
+  <section class="manual" aria-label="Every command">
+    <div class="m-head">
+      <h2>Field manual</h2>
+      <input id="filter" type="search" placeholder="Filter commands… (try: zoom, tab, image)" spellcheck="false" autocomplete="off">
+    </div>
+    <div id="groups" class="m-groups"></div>
+    <p id="nothing" class="m-none" hidden>No command matches that.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  var HK = '';
+  try { HK = localStorage.getItem('sidearm.hotkey') || 'Alt+`'; } catch (e) { HK = 'Alt+`'; }
+  HK = HK.split('+').join(' + ');
+  var bangs = {};
+  try { bangs = JSON.parse(localStorage.getItem('sidearm.bangs') || '{}') || {}; } catch (e) {}
+  var BR = 'Zen', AI = 'Claude';
+  try { BR = localStorage.getItem('sidearm.browser') || 'Zen'; AI = localStorage.getItem('sidearm.ai') || 'Claude'; } catch (e) {}
+  var GK = 'Alt+G';
+  try { GK = localStorage.getItem('sidearm.ghostkey') || 'Alt+G'; } catch (e) {}
+  GK = GK.split('+').join(' + ');
+  var QK = 'Alt+Space';
+  try { QK = localStorage.getItem('sidearm.quickkey'); if (QK == null) QK = 'Alt+Space'; } catch (e) {}
+  QK = QK ? QK.split('+').join(' + ') : '';
+  var gest = { L: 'back', R: 'forward', U: 'top', D: 'close', UD: 'reload', DR: 'zen', DL: 'zenPrivate' };
+  try { var gs = localStorage.getItem('sidearm.gestures'); if (gs) gest = JSON.parse(gs); } catch (e) {}
+  var GNAME = { back: 'Back', forward: 'Forward', close: 'Close the Glance, or holster', top: 'Top of the page', bottom: 'Bottom of the page',
+    reload: 'Reload', zen: 'Open this page in ' + BR, zenPrivate: 'Open it in a private ' + BR + ' window', closeTab: 'Close the tab',
+    newTab: 'New tab', reopen: 'Reopen the last closed tab', home: 'This start page' };
+  var ARROWS = { L: '\u2190', R: '\u2192', U: '\u2191', D: '\u2193' };
+
+  // [keys, what it does]. "|" separates alternative keys.
+  var G = [
+    ['Draw & holster', [
+      [HK, 'Draw or holster Sidearm, even over a borderless game'],
+      [HK + ' twice', 'Search whatever is on your clipboard'],
+      [HK + ', then 1', 'Same, holding Alt: clipboard search'],
+      ['Esc', 'Holster (first closes a Glance, viewer or pop-up)'],
+      ['Click the game', 'Holsters by itself, unless pinned'],
+      ['Pin button', 'Stay on screen while you play'],
+      ['Drag the top strip', 'Move the window; it snaps to screen edges'],
+      ['Drag the thin edge', 'Resize'],
+      ['Ctrl + scroll on the strip', 'Window opacity'],
+      ['Tray icon click', 'Draw · right-click: Settings, Start with Windows, Quit']
+    ]],
+    ['Quick bar', QK ? [
+      [QK, 'A small command bar where your mouse is, even over a game (again to close)'],
+      ['Enter', 'Sums, units and money copy; searches and addresses open in Sidearm'],
+      ['Shift + Enter', 'Open in a new Sidearm tab'],
+      ['Ctrl + Enter', 'Open in ' + BR],
+      ['timer 5m', 'Starts a timer without opening Sidearm'],
+      ['Esc|click elsewhere', 'Close it; focus goes back to your game'],
+      ['Settings → Quick bar', 'Its key, and where it appears']
+    ] : [['Settings → Quick bar', 'The quick bar is off; turn it on there']]],
+    ['Command bar', [
+      ['Ctrl + L|F6|Alt + D|/', 'Jump to the bar'],
+      ['Enter', 'Go: search, open the address, or run the prefix'],
+      ['Shift + Enter', 'Go in a new tab'],
+      ['Ctrl + Enter', 'Send it to ' + BR],
+      ['Ctrl + Shift + Enter', 'Send it to a private ' + BR + ' window'],
+      ['↑ ↓ then Enter', 'Pick a recent search or suggestion'],
+      ['Tab', 'Complete a prefix'],
+      ['Esc', 'Undo what you typed; again to holster'],
+      ['120*3.5|2^10|15% of 80|sqrt(2)|5!', 'Answer appears in the bar; Enter copies it'],
+      ['5 ft in cm|30 mph in km/h|100 f in c|2 lb in kg', 'Unit conversion; Enter copies the number'],
+      ['100 usd|50 € in pln|1000 грн в usd|$20', 'Money at the National Bank of Ukraine rate; Enter copies it'],
+      ['timer 5m|timer 1:30 boss|10 min timer', 'A timer: a chime and a notification when it ends, even while holstered'],
+      ['timer off|click the ⏱ in the strip', 'Stop timers'],
+      ['example.com', 'Opens the address directly']
+    ]],
+    ['Prefixes', null],
+    ['Tabs', [
+      ['Ctrl + T|+ button', 'New tab (the + moves to the bottom with the tabs)'],
+      ['Ctrl + W|middle-click a tab', 'Close tab'],
+      ['Ctrl + Tab|Ctrl + Shift + Tab', 'Next / previous tab'],
+      ['Ctrl + 1 … 8|Ctrl + 9', 'Jump to a tab / the last tab'],
+      ['Ctrl + Shift + T', 'Reopen the last closed tab'],
+      ['Scroll over the tabs', 'Switch tabs'],
+      ['Drag a tab', 'Reorder'],
+      ['Ctrl + click a link', 'Open it in a background tab'],
+      ['5 tabs max', 'The oldest is recycled, with a Bring back button']
+    ]],
+    ['Pages', [
+      ['Alt + ←|Alt + →', 'Back / forward'],
+      ['F5', 'Reload'],
+      ['Home|Alt + Home|Click SIDEARM', 'This start page (Home works anywhere you\'re not typing)'],
+      ['Ctrl + scroll|Ctrl + +|Ctrl + −', 'Zoom, remembered per site (the % pill resets it)'],
+      ['Ctrl + 0', 'Reset zoom'],
+      ['Ctrl + F', 'Find in page'],
+      ['Alt + R', 'Reader view: just the article (A−/A+, themes, Esc closes)'],
+      ['Alt + F', 'Clear fog: overlays, "subscribe" walls, blur, scroll locks'],
+      ['Alt + P|Shield → Pop out|right-click a video', 'Pop out the video: its own small always-on-top window that stays up while you play'],
+      ['Right-click the pop-out\'s title', 'Its opacity'],
+      ['Settings → Pages → Blocker', 'uBlock Origin Lite instead of Sidearm\'s own lists (experimental)'],
+      ['Shield button', 'This site: ads on/off, reader, auto-fog, force dark, look-up, zoom'],
+      ['Gear button', 'All settings'],
+      ['F12', 'Developer tools']
+    ]],
+    ['Links & Glance', [
+      ['Alt + click a link|middle-click a link', 'Glance: the link floats over this page'],
+      ['Alt + Enter', 'Glance becomes this tab'],
+      ['Alt + Shift + Enter', 'Glance opens in a new tab'],
+      ['Ctrl + Enter', 'Send the Glance page (or this page) to ' + BR],
+      ['Esc|click outside', 'Close the Glance'],
+      ['Right-click a link', 'Glance · ' + BR + ' · private window · Send to ' + AI + ' · Copy link (clean)']
+    ]],
+    ['Gestures', null],
+    ['Feel', [
+      [GK, 'Ghost mode: see-through and click-through, so a map or guide stays up while you play'],
+      [GK + ' again|' + HK, 'Solid again'],
+      ['Alt + M|speaker button', 'Mute or unmute this tab (new pages start muted)'],
+      ['Ctrl + Shift + C', 'Copy the selection as plain text; nothing selected copies a clean page link'],
+      ['Right-click a link → Copy link', 'Copies it without utm_*, fbclid and other trackers'],
+      ['Ctrl + C on the address', 'Clean link too'],
+      ['Settings → Feel', 'Amnesia mode: every holster wipes history, cookies and recent searches']
+    ]],
+    ['Words', [
+      ['Hold Alt over a word', 'Meaning, Wikipedia summary, Ukrainian translation'],
+      ['Double-click a word', 'Same pop-up'],
+      ['Select text, hold Alt over it', 'Look up a whole phrase'],
+      ['Right-click a selection', 'Look up · Ask ' + AI + ' about it'],
+      ['t …|tt …', 'Google Translate / DeepL (uk ↔ en)']
+    ]],
+    ['Images', [
+      ['Hover an image, Ctrl Ctrl', 'Open it in the viewer (the full-size original when there is one)'],
+      ['Scroll|drag|double-click', 'Zoom at the pointer / pan / fit ↔ 1:1'],
+      ['R', 'Rotate'],
+      ['C|S', 'Copy / save to Downloads'],
+      ['P', 'Pop out into its own always-on-top window'],
+      ['Lens|TinEye|Bing', 'Reverse image search'],
+      ['Esc|click the backdrop', 'Close']
+    ]],
+    ['Ask AI', [
+      ['a your question', 'Asks ' + AI + ' (your pick in Settings → Ask AI)'],
+      ['c …|gpt …|px …', 'Always Claude / ChatGPT / Perplexity'],
+      ['Right-click a page|a link|a selection', 'Send it to ' + AI],
+      ['Ask ' + AI + ' button', 'In the word pop-up'],
+      ['Settings → Ask AI', 'Claude, ChatGPT, Gemini, Perplexity or Copilot; app, tab or browser'],
+      ['Gemini app', 'Opens with your question on the clipboard: press Ctrl + V']
+    ]],
+    ['Translate', [
+      ['Alt + T', 'Translate this page (again for the original)'],
+      ['Shield → Translate', 'Same, plus “always translate this site”'],
+      ['Translate button', 'Appears once per site when a page isn\'t in a language you read'],
+      ['Settings → Translate', 'Target language, languages you read, offer or always'],
+      ['Settings → Translate → In place', 'The words change on the real page, so you stay signed in (experimental)']
+    ]],
+    ['Look', [
+      ['Settings → Look', 'Your color, a two-color gradient, tint and grain']
+    ]]
+  ];
+
+  var groups = document.getElementById('groups');
+  function kbds(keys) {
+    var wrap = document.createElement('span');
+    wrap.className = 'm-keys';
+    keys.split('|').forEach(function (k, i) {
+      if (i) { var or = document.createElement('i'); or.textContent = 'or'; wrap.appendChild(or); }
+      var b = document.createElement('kbd'); b.textContent = k; wrap.appendChild(b);
+    });
+    return wrap;
+  }
+  G.forEach(function (g) {
+    var rows = g[1];
+    if (!rows && g[0] === 'Gestures') {
+      rows = [];
+      if (!gest) rows.push(['Settings → Gestures', 'Gestures are off; turn them on there']);
+      else {
+        ['L', 'R', 'U', 'D', 'UD', 'DR', 'DL'].forEach(function (k) {
+          if (gest[k] && GNAME[gest[k]]) rows.push([k.split('').map(function (d) { return ARROWS[d]; }).join(' then '), GNAME[gest[k]]]);
+        });
+        rows.unshift(['Hold right button, flick', 'About 40 px; a plain right-click still opens the menu']);
+        rows.push(['Settings → Gestures', 'Change or switch off any of them']);
+      }
+    }
+    if (!rows) {
+      rows = Object.keys(bangs).map(function (k) { return [k + ' …', bangs[k].name || k]; });
+      if (!rows.length) rows = [['w …', 'Wikipedia'], ['i …', 'Images'], ['y …', 'YouTube']];
+      rows.push(['Settings → Search', 'Add, change or remove prefixes']);
+    }
+    var sec = document.createElement('section');
+    sec.className = 'm-group';
+    var h = document.createElement('h3'); h.textContent = g[0]; sec.appendChild(h);
+    var list = document.createElement('dl');
+    rows.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'm-row';
+      row.dataset.text = (g[0] + ' ' + r[0] + ' ' + r[1]).toLowerCase();
+      var dt = document.createElement('dt'); dt.appendChild(kbds(r[0]));
+      var dd = document.createElement('dd'); dd.textContent = r[1];
+      row.appendChild(dt); row.appendChild(dd);
+      list.appendChild(row);
+    });
+    sec.appendChild(list);
+    groups.appendChild(sec);
+  });
+
+  var filter = document.getElementById('filter');
+  filter.addEventListener('input', function () {
+    var q = filter.value.trim().toLowerCase(), any = false;
+    document.querySelectorAll('.m-group').forEach(function (sec) {
+      var shown = 0;
+      sec.querySelectorAll('.m-row').forEach(function (row) {
+        var hit = !q || row.dataset.text.indexOf(q) >= 0 || row.textContent.toLowerCase().indexOf(q) >= 0;
+        row.hidden = !hit; if (hit) shown++;
+      });
+      sec.hidden = !shown; if (shown) any = true;
+    });
+    document.getElementById('nothing').hidden = any;
+  });
+})();
+</script>
+</body>
+</html>

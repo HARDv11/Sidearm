@@ -1,0 +1,13 @@
+# Build output and anything a running Sidearm writes
+build/
+data/
+*.log
+*.zip
+# Old starter filter lists (not shipped; lists download on first start)
+seed/
+tests/ui/shots/
+tests/ui/node_modules/
+tests/ui/package-lock.json
+# Private working notes (kept outside the public repository)
+/CLAUDE.md
+/notes/

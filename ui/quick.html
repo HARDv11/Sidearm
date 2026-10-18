@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('sidearm.theme')||'dark'}catch(e){}</script>
+<script src="look.js"></script>
+<script>try{if(localStorage.getItem('sidearm.lang')==='uk')document.write('<script src="lang/uk.js"><\/script>')}catch(e){}</script>
+<script src="i18n.js"></script>
+<title>Sidearm quick bar</title>
+<link rel="stylesheet" href="sidearm.css">
+</head>
+<body class="quick-page">
+<div id="qb" class="qb">
+  <label class="bar focus qbar">
+    <svg class="qret" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v6M12 16.5v6M1.5 12h6M16.5 12h6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>
+    <span id="badge" class="badge" hidden></span>
+    <input id="q" type="text" spellcheck="false" autocomplete="off" aria-label="Search, sum, convert or set a timer">
+    <span id="inline" class="inline" hidden></span>
+  </label>
+  <div id="list" class="qlist"></div>
+  <div id="foot" class="foot qfoot"></div>
+</div>
+<script src="query.js"></script>
+<script src="quick.js"></script>
+</body>
+</html>
