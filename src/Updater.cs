@@ -137,7 +137,9 @@ namespace Sidearm
         /// <summary>Downloads, checks and unpacks the new version into data\update. Returns the folder holding Sidearm.exe.</summary>
         public static string Prepare()
         {
-            if (!CanInstall) throw new InvalidOperationException("No update to install");
+            // not CanInstall: that also says "not busy", and UpdateNow marks itself busy before it calls this
+            // (0.8.0 checked CanInstall here, so its Update button could never work)
+            if (Latest == null || zipUrl == null) throw new InvalidOperationException("No update to install");
             Directory.CreateDirectory(UpdateDir);
             string zipPath = Path.Combine(UpdateDir, zipName);
             string unpack = Path.Combine(UpdateDir, "new");

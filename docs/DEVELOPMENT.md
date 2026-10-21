@@ -272,6 +272,7 @@ Newest first. Every version name is in the log's `starting` line, so log entries
 
 **Fixed**
 
+- The Update button never worked in 0.8.0: `UpdateNow` marks the updater busy, then `Prepare` checked `CanInstall`, which includes "not busy", and refused every time ("No update to install"). `Prepare` now checks only that there is a release to install. 0.8.0 can't update itself because of this; it has to be replaced by hand once.
 - A crash in the browser engine (`EmbeddedBrowserWebView.dll`, access violation) when a page opened a new tab while 5 tabs were open: the recycled tab's view was disposed in the middle of the new-window request. Views are now retired safely (`RetireView`), and new windows get a fresh engine.
 - The engine's link bubble stayed stuck at the bottom of the page. Replaced with Sidearm's own, in the accent color, which goes away when the pointer reaches the strip or Sidearm holsters.
 - On a search results page the bar showed the whole encoded address (`…search?q=%D1%87%D0%BE…`). It now shows the search words; editing them keeps the results' mode (`tbm=isch` stays), a new query goes to the usual engine. Other addresses are shown decoded.
