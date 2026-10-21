@@ -10,15 +10,15 @@
 
 The latest version is on the **[Releases](../../releases/latest)** page:
 
-- **`Sidearm-<version>.zip`**: English.
-- **`Sidearm-<version>-share-uk.zip`**: Ukrainian (the language can be switched any time in Settings → General).
+- **`Sidearm-<version>-en.zip`**: English.
+- **`Sidearm-<version>-ua.zip`**: Ukrainian (the language can be switched any time in Settings → General).
 - The source code is under "Source code (zip)" on the same page.
 
 You need Windows 10 or 11 with the Microsoft Edge WebView2 Runtime (Windows 11 and an up-to-date Windows 10 already have it).
 
 **Install:** unzip the archive and run `Sidearm.exe`. It lives in the tray (the crosshair icon). Windows may show a SmartScreen warning because the program isn't signed: "More info" → "Run anyway".
 
-**Update:** from 0.8 on, Sidearm checks this page once a day and offers an Update button when a new version is out. It downloads the shared zip, checks it against GitHub's checksum, swaps the files in and restarts; your `data` folder is never touched. By hand: quit Sidearm (right-click the tray icon → "Quit Sidearm"), then unzip the new version over the old folder, or into a new folder. In a new folder, Sidearm finds the earlier copy and offers to bring over your sign-ins, tabs and settings.
+**Update:** from 0.8 on, Sidearm checks this page once a day and offers an Update button when a new version is out. It downloads the new zip, checks it against GitHub's checksum, swaps the files in and restarts; your `data` folder is never touched. By hand: quit Sidearm (right-click the tray icon → "Quit Sidearm"), then unzip the new version over the old folder, or into a new folder. In a new folder, Sidearm finds the earlier copy and offers to bring over your sign-ins, tabs and settings.
 
 > ⚠️ The `data` folder next to `Sidearm.exe` holds your sign-ins. Never send it to anyone.
 
@@ -81,15 +81,15 @@ The result is in `build/Sidearm/`. Layout:
 
 Остання версія лежить на сторінці **[Releases](../../releases/latest)**:
 
-- **`Sidearm-<версія>.zip`**: англійською.
-- **`Sidearm-<версія>-share-uk.zip`**: українською (мову можна змінити будь-коли в Налаштування → Загальні).
+- **`Sidearm-<версія>-en.zip`**: англійською.
+- **`Sidearm-<версія>-ua.zip`**: українською (мову можна змінити будь-коли в Налаштування → Загальні).
 - Вихідний код — за посиланням «Source code (zip)» на тій самій сторінці.
 
 Потрібна Windows 10 або 11 з Microsoft Edge WebView2 Runtime (на Windows 11 і оновленій Windows 10 він уже є).
 
 **Встановлення:** розпакуйте архів і запустіть `Sidearm.exe`. Він живе в треї (іконка-приціл). Windows може показати попередження SmartScreen, бо програма не підписана: «Додаткові відомості» → «Усе одно запустити».
 
-**Оновлення:** починаючи з 0.8, Sidearm раз на день перевіряє цю сторінку й пропонує кнопку «Оновити», коли виходить нова версія. Він завантажує спільний zip, звіряє його з контрольною сумою GitHub, замінює файли й перезапускається; папка `data` лишається недоторканою. Вручну: закрийте Sidearm (правий клік по іконці в треї → «Вийти з Sidearm»), потім розпакуйте нову версію поверх старої папки або в нову папку. У новій папці Sidearm знайде попередню копію й запропонує перенести входи в акаунти, вкладки й налаштування.
+**Оновлення:** починаючи з 0.8, Sidearm раз на день перевіряє цю сторінку й пропонує кнопку «Оновити», коли виходить нова версія. Він завантажує новий zip, звіряє його з контрольною сумою GitHub, замінює файли й перезапускається; папка `data` лишається недоторканою. Вручну: закрийте Sidearm (правий клік по іконці в треї → «Вийти з Sidearm»), потім розпакуйте нову версію поверх старої папки або в нову папку. У новій папці Sidearm знайде попередню копію й запропонує перенести входи в акаунти, вкладки й налаштування.
 
 > ⚠️ Папка `data` поруч із `Sidearm.exe` містить ваші входи в акаунти. Нікому її не надсилайте.
 

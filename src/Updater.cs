@@ -103,8 +103,11 @@ namespace Sidearm
                 return false;
             }
             // the shared zip: the build without source, which every copy can use (data\ keeps your language)
-            var zip = assets.FirstOrDefault(a => (Json.Str(a, "name") ?? "").EndsWith("-share-uk.zip", StringComparison.OrdinalIgnoreCase))
-                   ?? assets.FirstOrDefault(a => Regex.IsMatch(Json.Str(a, "name") ?? "", @"^Sidearm-[\d.]+\.zip$", RegexOptions.IgnoreCase));
+            // Sidearm-0.8.2-ua.zip / -en.zip since 0.8.2 (-share-uk.zip and plain Sidearm-0.8.1.zip before). Either language
+            // does: the updater skips defaults.json, and your language lives in data\settings.json.
+            Func<string, Dictionary<string, object>> pick = re => assets.FirstOrDefault(a => Regex.IsMatch(Json.Str(a, "name") ?? "", re, RegexOptions.IgnoreCase));
+            var zip = pick(@"^Sidearm-[\d.]+-ua\.zip$") ?? pick(@"^Sidearm-[\d.]+-en\.zip$")
+                   ?? pick(@"-share-uk\.zip$") ?? pick(@"^Sidearm-[\d.]+\.zip$");
             Latest = tag.TrimStart('v', 'V');
             if (zip == null)
             {

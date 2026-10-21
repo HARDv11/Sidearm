@@ -28,6 +28,8 @@ class U {
     Ok(Read("{\"tag_name\":\"v99.0.0\",\"name\":\"99.0.0 · Test\",\"body\":\"notes\",\"assets\":[{\"name\":\"Sidearm-99.0.0-share-uk.zip\",\"browser_download_url\":\"" + dl + "Sidearm-99.0.0-share-uk.zip\",\"digest\":\"sha256:ABC\"}]}"), "newer release");
     Ok((string)F("Latest") == "99.0.0" && (bool)F("CanInstall"), "latest 99.0.0 installable");
     Ok(Read("{\"tag_name\":\"v99.0.0\",\"assets\":[{\"name\":\"Sidearm-99.0.0-share-uk.zip\",\"browser_download_url\":\"https://evil.example/x.zip\"}]}") && !(bool)F("CanInstall"), "foreign download link refused");
+    Ok(Read("{\"tag_name\":\"v99.0.0\",\"assets\":[{\"name\":\"Sidearm-99.0.0-en.zip\",\"browser_download_url\":\"" + dl + "Sidearm-99.0.0-en.zip\",\"digest\":\"sha256:AB\"},{\"name\":\"Sidearm-99.0.0-ua.zip\",\"browser_download_url\":\"" + dl + "Sidearm-99.0.0-ua.zip\",\"digest\":\"sha256:CD\"}]}") && (bool)F("CanInstall"), "new -ua / -en names installable");
+    Ok(Read("{\"tag_name\":\"v99.0.0\",\"assets\":[{\"name\":\"Sidearm-99.0.0-en.zip\",\"browser_download_url\":\"" + dl + "Sidearm-99.0.0-en.zip\",\"digest\":\"sha256:AB\"}]}") && (bool)F("CanInstall"), "English zip alone is enough");
     Ok(Read("{\"tag_name\":\"v99.0.0\",\"assets\":[{\"name\":\"notes.txt\",\"browser_download_url\":\"" + dl + "notes.txt\"}]}") && !(bool)F("CanInstall"), "no zip, nothing to install");
     // unpack: right checksum, wrong checksum, a path that escapes
     string z1 = Path.Combine(root, "good.zip"), un = Path.Combine(root, "new");

@@ -24,9 +24,10 @@ There is no .NET SDK or NuGet in the build, so it uses Mono's C# compiler agains
 1. **Build.** `./build.sh` in the project root runs `mcs -sdk:4.5 -platform:x64 -target:winexe` over `src/*.cs` and copies the DLLs, `ui/` and `assets/README.txt` into `build/Sidearm/`. A clean build prints only `built build/Sidearm`. It needs `mcs` (Mono), `llvm-rc` and Python 3 with `pefile`.
 2. **Test.** `tests/run.sh` (add `ui` for headless screenshots; see Testing below).
 3. **Package.** `tools/release.sh` puts the release files in `build/release/` (see Releases and updates below):
-   - `Sidearm-<ver>.zip`: English, the build plus a `defaults.json` holding `{"language":"en"}`;
-   - `Sidearm-<ver>-share-uk.zip`: Ukrainian, the build plus `{"language":"uk"}`. This is the one the updater installs (it skips `defaults.json`, so it suits English copies too);
+   - `Sidearm-<ver>-en.zip`: English, the build plus a `defaults.json` holding `{"language":"en"}`;
+   - `Sidearm-<ver>-ua.zip`: Ukrainian, the build plus `{"language":"uk"}`;
    - a `.sha256` checksum for each.
+   The updater takes either zip: it skips `defaults.json`, and each copy's language lives in `data\settings.json`. No spaces in the names (GitHub turns them into dots).
    The source code needs no zip of ours: GitHub attaches "Source code (zip / tar.gz)" to every release by itself.
 4. **Never include `data\`** in a zip or a commit: it holds cookies and sign-ins. The script refuses if it finds one.
 
@@ -242,8 +243,8 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 | --- | --- | --- |
 | Tag | `v<ver>`, the same version as `AssemblyInformationalVersion` in `src/Program.cs` (for example `v0.8.1`) | Compared number by number with the running version |
 | Release type | Published, **not** a draft or a pre-release | `releases/latest` ignores the others (a pre-release is a way to hold one back) |
-| Asset | `Sidearm-<ver>-share-uk.zip` with `Sidearm/Sidearm.exe` and `Sidearm/ui/` inside | The only file the updater installs; the download link must be on `github.com/HARDv11/Sidearm/releases/download/` |
-| Asset (English) | `Sidearm-<ver>.zip` | For people who want English; the updater falls back to it if the Ukrainian zip is missing |
+| Assets | `Sidearm-<ver>-ua.zip` and `Sidearm-<ver>-en.zip`, with `Sidearm/Sidearm.exe` and `Sidearm/ui/` inside | The updater installs the first it finds (`-ua`, then `-en`, then the pre-0.8.2 names `-share-uk.zip` and plain `Sidearm-<ver>.zip`); the download link must be on `github.com/HARDv11/Sidearm/releases/download/` |
+| Old updaters | 0.8.0 only knows `*-share-uk.zip` and plain `Sidearm-<ver>.zip` | That's why the 0.8.1 release ships its Ukrainian zip as `Sidearm-0.8.1-share-uk.zip`; from 0.8.2 on, every copy reads `-ua` / `-en` |
 | Checksum | GitHub's own `digest` for the asset, or an attached `<zip>.sha256` | No checksum, no install. Attach both `.sha256` files anyway: they're the fallback |
 | Notes | The release description | Shown in Settings → General → Updates (first 4,000 characters), so write them for users |
 
@@ -279,7 +280,7 @@ Newest first. Every version name is in the log's `starting` line, so log entries
 
 - The + new-tab button sits right after the last tab (with one tab it stays in the bar row).
 - `CrashCheck`: an unclean exit is noticed at the next start, and Windows' crash record goes into the log. New windows and recycled tabs are logged too.
-- Releases ship as `Sidearm-<ver>.zip` (English) and `Sidearm-<ver>-share-uk.zip` (Ukrainian), each with a `.sha256`.
+- Releases ship as `Sidearm-<ver>-en.zip` and `Sidearm-<ver>-ua.zip`, each with a `.sha256`; the updater reads both names (and the old ones). The 0.8.1 release itself keeps `-share-uk.zip` for the Ukrainian zip so 0.8.0's updater can find it.
 
 ### 0.8.0 · Resupply — 2026-10-18
 
