@@ -164,6 +164,33 @@ namespace Sidearm
             return new Pin { title = title, url = u.AbsoluteUri, icon = icon };
         }
 
+        // ── shortcuts (0.8.1) ──
+
+        void MakeShortcuts()
+        {
+            int n = Shortcuts.CreateBoth();
+            if (n > 0) Toast("Sidearm is on the desktop and in Start. To pin it, right-click the desktop icon → Pin to taskbar", null, null);
+            else Toast("Couldn't create the shortcuts. Details are in the log", null, null);
+            foreach (var t in tabs) if (IsTrustedPage(t.Url)) PushSettingsSnapshot(t);
+        }
+
+        /// <summary>Once per copy, a few seconds into a draw: no shortcut anywhere yet? Offer them.</summary>
+        void OfferShortcutsSoon()
+        {
+            if (S.shortcutsOffered) return;
+            S.shortcutsOffered = true;
+            SaveSettingsSoon();
+            if (Shortcuts.State(Shortcuts.DesktopPath) != "none" || Shortcuts.State(Shortcuts.StartMenuPath) != "none") return;
+            var t = new System.Windows.Forms.Timer { Interval = 6000 };
+            t.Tick += (s, e) =>
+            {
+                t.Stop(); t.Dispose();
+                if (Visible) Toast("Put Sidearm on the desktop and in Start? From there you can pin it to the taskbar", "Add", "shortcuts");
+                else S.shortcutsOffered = false; // holstered already: ask next time
+            };
+            t.Start();
+        }
+
         /// <summary>Right-click on a page → "Pin to start page".</summary>
         void PinPage(Tab tab)
         {

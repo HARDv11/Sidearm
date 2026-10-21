@@ -34,6 +34,7 @@
       holder.textContent = '';
       holder.appendChild(makeSwitch(!!S[key], function (on) { set(key, on); }));
     });
+    renderShortcuts(m.shortcuts || {});
     renderUpdate(m.update || { current: String(m.version || '').split(' ')[0], status: 'Not checked yet' });
     var auto = $('autostart');
     auto.textContent = '';
@@ -374,6 +375,18 @@
 
   // ───────────── buttons ─────────────
 
+  function renderShortcuts(sc) {
+    sc = { desktop: sc.desktop || 'none', start: sc.start || 'none' };
+    var on = function (x) { return x === 'ok'; };
+    var st = sc.desktop === 'none' && sc.start === 'none' ? T('None yet. Add them, then right-click the desktop icon → Pin to taskbar.')
+      : (on(sc.desktop) && on(sc.start) ? T('On the desktop and in Start. Right-click the desktop icon → Pin to taskbar.')
+      : T('Some point at an older copy or are missing: Add fixes them.'));
+    $('scStatus').textContent = st;
+    $('scAdd').textContent = T(on(sc.desktop) && on(sc.start) ? 'Make again' : 'Add');
+    $('scRemove').hidden = sc.desktop === 'none' && sc.start === 'none';
+  }
+  $('scAdd').addEventListener('click', function () { action('shortcutsAdd'); flashSaved(); });
+  $('scRemove').addEventListener('click', function () { action('shortcutsRemove'); flashSaved(); });
   function renderUpdate(u) {
     var st = $('updStatus');
     st.textContent = (u.current ? 'Sidearm ' + u.current + '  \u00b7  ' : '') + T(u.status || 'Not checked yet');

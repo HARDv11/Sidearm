@@ -66,6 +66,7 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `src/QuickBar.cs`, `src/VideoWindow.cs` | The quick bar window (borderless, topmost, hides on focus loss and hands focus back) and the video pop-out window (tool window, opacity in its system menu) |
 | `src/MainForm.Paint.cs` | 0.8: makes sure the strip paints after a draw (`NudgeAfterShow`, the `painted` handshake, `KickView`) |
 | `src/MainForm.Home.cs` | 0.8: the start page's notes (`data\notes.txt`, `AppendNote` for `n …`) and pinned sites (`data\pins.json`, `PinPage`) |
+| `src/Shortcuts.cs` | 0.8.1: `Sidearm.lnk` on the desktop and in Start (IShellLink), and moving them along when a new copy starts in another folder. Sidearm is a tool window with no taskbar button, so these are how it gets pinned |
 | `src/CrashCheck.cs` | 0.8.1: a `running.txt` note in `data\` while Sidearm runs; if it's still there at the next start, Windows' crash record (Application Error / .NET Runtime) is copied into the log |
 | `src/Updater.cs`, `src/MainForm.Update.cs` | 0.8: update check against GitHub Releases, download + SHA-256 check, file swap with `.old` copies, rollback, and the toast / Settings glue |
 | `src/Rates.cs`, `src/Chime.cs`, `src/Ublock.cs` | NBU exchange rates with a fallback and a disk cache; the in-memory timer chime; uBlock Origin Lite download, unpack and enable |
@@ -279,6 +280,7 @@ Newest first. Every version name is in the log's `starting` line, so log entries
 **Added**
 
 - The + new-tab button sits right after the last tab (with one tab it stays in the bar row).
+- Shortcuts (`Shortcuts.cs`): Settings → General, the tray menu, or a one-time offer on the first draw. Sidearm has no taskbar button (a tool window), so it couldn't be pinned before; a pinned shortcut now draws it.
 - `CrashCheck`: an unclean exit is noticed at the next start, and Windows' crash record goes into the log. New windows and recycled tabs are logged too.
 - Releases ship as `Sidearm-<ver>-en.zip` and `Sidearm-<ver>-ua.zip`, each with a `.sha256`; the updater reads both names (and the old ones). The 0.8.1 release itself keeps `-share-uk.zip` for the Ukrainian zip so 0.8.0's updater can find it.
 

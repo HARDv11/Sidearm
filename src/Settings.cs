@@ -82,6 +82,7 @@ namespace Sidearm
         public string lastUpdateCheck { get; set; } // when that last happened (UTC, ISO 8601)
         public bool snapEdges { get; set; }        // 0.8: a dropped window jumps to a screen edge within 24 px
         public bool youtubeAds { get; set; }       // 0.8: skip YouTube's video ads (Sidearm's own blocker)
+        public bool shortcutsOffered { get; set; } // 0.8.1: asked once whether to put Sidearm on the desktop and in Start
         public int defaultsVersion { get; set; }
         public int windowX { get; set; }
         public int windowY { get; set; }

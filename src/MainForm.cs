@@ -109,6 +109,7 @@ namespace Sidearm
             SetupTray();
             InitRates();
             InitUpdates();
+            try { Shortcuts.FollowThisCopy(); } catch (Exception ex) { Log.Error("Shortcuts", ex); } // a copy in a new folder takes its shortcuts along
             ThreadPool.RegisterWaitForSingleObject(drawSignal, (state, timedOut) =>
             {
                 try { BeginInvoke(new Action(Draw)); } catch (Exception) { }
@@ -281,6 +282,7 @@ namespace Sidearm
                 memTimer.Start();
                 Rates.RefreshIfOld();
                 CheckUpdatesIfDue();
+                OfferShortcutsSoon();
                 if (S.quickBar && !quickKeyOk && !quickKeyWarned)
                 {
                     quickKeyWarned = true;
@@ -694,6 +696,7 @@ namespace Sidearm
                         else if (name == "ghost") ToggleGhost();
                         else if (name == "popout") PopOutVideo(glance ?? active);
                         else if (name == "update") UpdateNow();
+                        else if (name == "shortcuts") MakeShortcuts();
                         else if (name == "lookupOn" && active != null) { SetSiteOption("lookup", true); Toast("Word look-up is on again for this site", null, null); }
                         break;
                     case "log":
@@ -1011,6 +1014,7 @@ namespace Sidearm
             menu.Items.Add(trayGhost);
             menu.Items.Add(new ToolStripSeparator());
             menu.Items.Add(trayAutostart);
+            menu.Items.Add(new ToolStripMenuItem(L("Shortcuts on the desktop and in Start"), null, (s, e) => MakeShortcuts()));
             menu.Items.Add(new ToolStripMenuItem(L("Settings…"), null, (s, e) => OpenSettingsPage()));
             menu.Items.Add(new ToolStripMenuItem(L("Edit settings file"), null, (s, e) => OpenSettingsFile()));
             menu.Items.Add(new ToolStripMenuItem(L("Open data folder"), null, (s, e) =>

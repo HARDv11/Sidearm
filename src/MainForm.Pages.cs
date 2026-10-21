@@ -342,6 +342,8 @@ namespace Sidearm
                 case "updateFilters": Adblock.UpdateNow(true); break;
                 case "updateCheck": CheckUpdatesNow(tab); break;
                 case "updateNow": UpdateNow(); break;
+                case "shortcutsAdd": MakeShortcuts(); break;
+                case "shortcutsRemove": Shortcuts.RemoveBoth(); break;
                 case "importWiki":
                     PostToContent(tab, new { t = "settings-msg", text = "Looking for Modern for Wikipedia…" });
                     string msg = await Extensions.Import(ui.CoreWebView2.Profile);
@@ -440,6 +442,7 @@ namespace Sidearm
                 browser = BrowserInfo(),
                 dataDir = Program.DataDir,
                 update = UpdateInfo(),
+                shortcuts = new { desktop = Shortcuts.State(Shortcuts.DesktopPath), start = Shortcuts.State(Shortcuts.StartMenuPath) },
                 sites = sites
             };
         }

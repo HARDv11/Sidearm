@@ -2,7 +2,8 @@ SIDEARM 0.8.1 · "Resupply"
 "Switching to your sidearm is faster than opening a browser."
 
 START
-  Double-click Sidearm.exe. It lives in the tray (crosshair icon).
+  Double-click Sidearm.exe. It lives in the tray (crosshair icon). For a desktop / Start menu icon you can pin
+  to the taskbar: Settings -> General -> Shortcuts.
   Keep this whole folder together: the exe needs the DLLs and the ui folder.
   Windows may show a SmartScreen warning the first time (the exe isn't signed):
   More info -> Run anyway. A few lesser-known virus scanners guess "trojan" for unsigned new programs
@@ -30,6 +31,9 @@ NEW IN 0.8.1
                         encoded address): change two words and press Enter, and Google Images stays Images.
                         The list of recent searches no longer pops open by itself: type, or press Down
   New tab button        the + now sits right after the last tab
+  Shortcuts             Settings -> General -> Shortcuts (or the tray menu) puts Sidearm on the desktop and in
+                        Start. To pin it to the taskbar, right-click the desktop icon -> Pin to taskbar.
+                        Clicking it while Sidearm runs draws it. Sidearm offers this once on its own
   Link preview          hovering a link shows where it goes at the bottom, in your color; it no longer
                         gets stuck on screen
   Fixed                 a crash in the browser engine when a page opened a new tab while 5 tabs were open

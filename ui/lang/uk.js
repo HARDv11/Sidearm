@@ -607,7 +607,18 @@ window.SIDEARM_UK = {
 "On a search page": "На сторінці пошуку",
 "The bar shows the words you searched for: change them and press Enter (Images stay Images)": "Рядок показує слова, які ви шукали: змініть їх і натисніть Enter (Картинки лишаються Картинками)",
 "Hover a link": "Наведіть на посилання",
-"Where it goes, at the bottom of the page, in your color": "Куди воно веде, внизу сторінки, у вашому кольорі"
+"Where it goes, at the bottom of the page, in your color": "Куди воно веде, внизу сторінки, у вашому кольорі",
+"Shortcuts": "Ярлики",
+"Make again": "Створити знову",
+"None yet. Add them, then right-click the desktop icon → Pin to taskbar.": "Ще немає. Додайте їх, потім правий клік по ярлику на робочому столі → Закріпити на панелі завдань.",
+"On the desktop and in Start. Right-click the desktop icon → Pin to taskbar.": "На робочому столі й у «Пуску». Правий клік по ярлику на робочому столі → Закріпити на панелі завдань.",
+"Some point at an older copy or are missing: Add fixes them.": "Деякі ведуть до старої копії або їх немає: «Додати» виправить.",
+"Shortcuts on the desktop and in Start": "Ярлики на робочому столі й у «Пуску»",
+"Sidearm is on the desktop and in Start. To pin it, right-click the desktop icon → Pin to taskbar": "Sidearm тепер на робочому столі й у «Пуску». Щоб закріпити його, клацніть правою по ярлику на робочому столі → Закріпити на панелі завдань",
+"Couldn't create the shortcuts. Details are in the log": "Не вдалося створити ярлики. Подробиці в лозі",
+"Put Sidearm on the desktop and in Start? From there you can pin it to the taskbar": "Додати Sidearm на робочий стіл і в «Пуск»? Звідти його можна закріпити на панелі завдань",
+"Settings → General → Shortcuts": "Налаштування → Загальні → Ярлики",
+"Sidearm on the desktop and in Start; pin it to the taskbar from the desktop icon (clicking it draws Sidearm)": "Sidearm на робочому столі й у «Пуску»; закріпіть на панелі завдань через ярлик на робочому столі (клік по ньому дістає Sidearm)"
 },
 "templates": [
 ["Found an earlier Sidearm in {1}. Bring over your sign-ins, tabs and settings? The old copy stays as it is.", "Знайдено попередній Sidearm у {1}. Перенести входи в акаунти, вкладки й налаштування? Стара копія лишиться як є."],
