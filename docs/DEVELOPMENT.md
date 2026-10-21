@@ -6,7 +6,7 @@ Sidearm is a pocket browser for Windows that you draw over a borderless game wit
 
 Sidearm is a small, always-on-top browser window for quick lookups mid-game. It doesn't replace your main browser: it's what you reach for when opening that browser would mean alt-tabbing out of a match. Tagline, used on the start page and tray: *Switching to your sidearm is faster than opening a browser.*
 
-It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.8.1 · Resupply.**
+It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.8.2 · Resupply.**
 
 **Non-negotiables**
 
@@ -245,7 +245,7 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 | Tag | `v<ver>`, the same version as `AssemblyInformationalVersion` in `src/Program.cs` (for example `v0.8.1`) | Compared number by number with the running version |
 | Release type | Published, **not** a draft or a pre-release | `releases/latest` ignores the others (a pre-release is a way to hold one back) |
 | Assets | `Sidearm-<ver>-ua.zip` and `Sidearm-<ver>-en.zip`, with `Sidearm/Sidearm.exe` and `Sidearm/ui/` inside | The updater installs the first it finds (`-ua`, then `-en`, then the pre-0.8.2 names `-share-uk.zip` and plain `Sidearm-<ver>.zip`); the download link must be on `github.com/HARDv11/Sidearm/releases/download/` |
-| Old updaters | 0.8.0 only knows `*-share-uk.zip` and plain `Sidearm-<ver>.zip` | That's why the 0.8.1 release ships its Ukrainian zip as `Sidearm-0.8.1-share-uk.zip`; from 0.8.2 on, every copy reads `-ua` / `-en` |
+| Old updaters | 0.8.0 only knows `*-share-uk.zip` and plain `Sidearm-<ver>.zip` | 0.8.0 and 0.8.1 can't install anything anyway (their Update button was broken), so from 0.8.2 on releases use `-ua` / `-en` only |
 | Checksum | GitHub's own `digest` for the asset, or an attached `<zip>.sha256` | No checksum, no install. Attach both `.sha256` files anyway: they're the fallback |
 | Notes | The release description | Shown in Settings → General → Updates (first 4,000 characters), so write them for users |
 
@@ -266,13 +266,18 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 
 Newest first. Every version name is in the log's `starting` line, so log entries can be matched to builds. Milestones 1–4 of the original plan map to 0.1, 0.3, 0.4 and 0.5.
 
+### 0.8.2 · Resupply — 2026-10-22
+
+**Fixed**
+
+- The Update button never worked in 0.8.0 and 0.8.1: `UpdateNow` marks the updater busy, then `Prepare` checked `CanInstall`, which includes "not busy", and refused every time ("No update to install"). `Prepare` now checks only that there is a release to install. 0.8.0 and 0.8.1 can't update themselves because of this; they have to be replaced by hand once. Checked end to end against the published v0.8.1 assets before release.
+
 ### 0.8.1 · Resupply — 2026-10-21
 
 *Fixes from a week with 0.8, and the first update delivered by the updater.*
 
 **Fixed**
 
-- The Update button never worked in 0.8.0: `UpdateNow` marks the updater busy, then `Prepare` checked `CanInstall`, which includes "not busy", and refused every time ("No update to install"). `Prepare` now checks only that there is a release to install. 0.8.0 can't update itself because of this; it has to be replaced by hand once.
 - A crash in the browser engine (`EmbeddedBrowserWebView.dll`, access violation) when a page opened a new tab while 5 tabs were open: the recycled tab's view was disposed in the middle of the new-window request. Views are now retired safely (`RetireView`), and new windows get a fresh engine.
 - The engine's link bubble stayed stuck at the bottom of the page. Replaced with Sidearm's own, in the accent color, which goes away when the pointer reaches the strip or Sidearm holsters.
 - On a search results page the bar showed the whole encoded address (`…search?q=%D1%87%D0%BE…`). It now shows the search words; editing them keeps the results' mode (`tbm=isch` stays), a new query goes to the usual engine. Other addresses are shown decoded.

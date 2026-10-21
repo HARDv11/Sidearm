@@ -12,15 +12,15 @@ using Microsoft.Web.WebView2.Core;
 [assembly: AssemblyDescription("Sidearm pocket browser: an always-on-top browser window you call up mid-game.")]
 [assembly: AssemblyCompany("Sidearm project")]
 [assembly: AssemblyCopyright("Copyright © 2026 Sidearm project")]
-[assembly: AssemblyVersion("0.8.1.0")]
-[assembly: AssemblyFileVersion("0.8.1.0")]
-[assembly: AssemblyInformationalVersion("0.8.1")]
+[assembly: AssemblyVersion("0.8.2.0")]
+[assembly: AssemblyFileVersion("0.8.2.0")]
+[assembly: AssemblyInformationalVersion("0.8.2")]
 
 namespace Sidearm
 {
     internal static class Program
     {
-        public const string Version = "0.8.1 · Resupply";
+        public const string Version = "0.8.2 · Resupply";
         public const string Tagline = "Switching to your sidearm is faster than opening a browser.";
 
         public static string AppDir, DataDir, UiDir;

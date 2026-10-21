@@ -1,4 +1,4 @@
-SIDEARM 0.8.1 · "Resupply"
+SIDEARM 0.8.2 · "Resupply"
 "Switching to your sidearm is faster than opening a browser."
 
 START
@@ -25,6 +25,10 @@ UPDATING
      over your sign-ins, open tabs and settings. Say yes, and you're still signed in everywhere.
   By hand: copy the old "data" folder next to the new Sidearm.exe before its first start.
   Never send your data folder to anyone: it holds your sign-ins.
+
+NEW IN 0.8.2
+  Fixed                 the Update button didn't work in 0.8.0 and 0.8.1 ("failed to install" every time).
+                        From this version on it does; 0.8.0 and 0.8.1 have to be replaced by hand once
 
 NEW IN 0.8.1
   Command bar           on a search results page the bar shows the words you searched for (not a long
