@@ -337,6 +337,7 @@ body.tabs-only .tab.active { margin-bottom: 0; margin-top: -1px; }
 body.tabs-only .tab.active::before { top: auto; bottom: 0; border-radius: 2px 2px 0 0; }
 
 #root.tabs-bottom #newtab { display: none; }
+#root.multi #newtab { display: none; }
 .tab-new {
   flex: none; align-self: center; display: grid; place-items: center;
   width: 30px; height: 26px; margin-left: 4px; padding: 0;

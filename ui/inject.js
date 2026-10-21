@@ -187,7 +187,8 @@
     if (!m || typeof m !== 'object') return;
     if (m.t === 'lookup-result' && current && m.id === current.id) render(m);
     else if (m.t === 'lookup-sel' && m.text) lookup(m.text, { left: ctx.x, right: ctx.x, top: ctx.y - 10, bottom: ctx.y + 4 });
-    else if (m.t === 'lookup-cancel') { altDown = false; clearTimeout(hoverTimer); hide(); }
+    else if (m.t === 'lookup-cancel') { altDown = false; clearTimeout(hoverTimer); hide(); linkTip(null); }
+    else if (m.t === 'away') { pointerIn = false; altDown = false; clearTimeout(hoverTimer); linkTip(null); } // the pointer went to the strip
     else if (m.t === 'cosmetic-css' && m.selectors) addHiding(m.selectors);
     else if (m.t === 'fog') { var n = fog(); post({ t: 'fog-done', n: n }); }
     else if (m.t === 'dark') setDark(!!m.on);
@@ -521,6 +522,61 @@
   if (!OURS) document.addEventListener('play', function (e) {
     if (e.target && e.target.tagName === 'VIDEO' && !window.__sidearmHasVideo) { window.__sidearmHasVideo = 1; post({ t: 'hasvideo' }); }
   }, true);
+
+  // ───────────── where a link goes (0.8.1) ─────────────
+  // Sidearm's own version of the address bubble at the bottom: in your color, and it goes away when the pointer
+  // leaves the page for the strip or Sidearm is holstered (the engine's own bubble could stay stuck on screen).
+
+  var tipHost = null, tipBox = null, tipFor = null;
+  function linkTip(a) {
+    if (!a) {
+      tipFor = null;
+      if (tipHost) tipHost.style.display = 'none';
+      return;
+    }
+    var href = a.href;
+    if (!href || !/^https?:/i.test(href) || OURS && /^https:\/\/sidearm\.example\//.test(href)) { linkTip(null); return; }
+    if (!tipHost) {
+      tipHost = document.createElement('sidearm-linktip');
+      tipHost.style.cssText = 'all:initial;position:fixed;left:0;bottom:0;z-index:2147483646;pointer-events:none;display:none';
+      var root = tipHost.attachShadow({ mode: 'closed' });
+      root.innerHTML = '<style>' +
+        '.t{max-width:min(620px,70vw);margin:0 0 6px 6px;padding:4px 10px 5px;border-radius:7px;font:12.5px/1.35 "Segoe UI",system-ui,sans-serif;' +
+        'white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 10px rgba(0,0,0,.35);border:1px solid}' +
+        '.t b{font-weight:600}.r .t{margin:0 6px 6px 0}</style><div class="t"></div>';
+      tipBox = root.querySelector('.t');
+      (document.documentElement || document).appendChild(tipHost);
+    }
+    if (tipFor === href && tipHost.style.display !== 'none') return;
+    tipFor = href;
+    var u; try { u = new URL(href); } catch (e) { linkTip(null); return; }
+    var host = u.hostname.replace(/^www\./, ''), rest = '';
+    try { rest = decodeURI(u.pathname + u.search + u.hash); } catch (e) { rest = u.pathname + u.search + u.hash; }
+    if (rest === '/') rest = '';
+    var light = CFG.theme === 'light', acc = ACC();
+    tipBox.style.background = light ? 'rgba(251,250,246,.97)' : 'rgba(23,27,29,.96)';
+    tipBox.style.color = light ? '#1d2023' : '#c9ccc6';
+    tipBox.style.borderColor = acc;
+    tipBox.textContent = '';
+    var hb = document.createElement('b'); hb.textContent = host; hb.style.color = acc;
+    tipBox.appendChild(hb);
+    tipBox.appendChild(document.createTextNode(rest));
+    tipHost.style.display = 'block';
+  }
+  function linkFrom(t) { return t && t.closest ? t.closest('a[href]') : null; }
+  window.addEventListener('mouseover', function (e) {
+    var a = linkFrom(e.target);
+    if (!a) { if (tipFor) linkTip(null); return; }
+    // keep out of the pointer's way: near the bottom-left corner the bubble moves to the right
+    if (tipHost) {
+      var right = e.clientX < 640 && e.clientY > innerHeight - 60;
+      tipHost.style.left = right ? 'auto' : '0'; tipHost.style.right = right ? '0' : 'auto';
+    }
+    linkTip(a);
+  }, true);
+  window.addEventListener('mouseout', function (e) { if (!e.relatedTarget || !linkFrom(e.relatedTarget)) linkTip(null); }, true);
+  ['scroll', 'mousedown', 'blur', 'pagehide'].forEach(function (ev) { window.addEventListener(ev, function () { linkTip(null); }, true); });
+  document.addEventListener('visibilitychange', function () { if (document.hidden) linkTip(null); });
 
   // ───────────── YouTube ads (0.8): mute, jump to the end, press Skip ─────────────
   // Filter lists can't stop these (they come from the same servers as the video), so with Sidearm's own blocker

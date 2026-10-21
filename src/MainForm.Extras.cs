@@ -210,7 +210,7 @@ namespace Sidearm
                 v.KeyDown += OnViewKeyDown;
                 var forceHandle = v.Handle;
                 await v.EnsureCoreWebView2Async(env);
-                if (!Visible || !S.spareTab) { content.Controls.Remove(v); v.Dispose(); return; }
+                if (!Visible || !S.spareTab) { RetireView(v, "spare"); return; }
                 spare = v;
             }
             catch (Exception ex) { Log.Error("Spare tab", ex); }
@@ -233,7 +233,7 @@ namespace Sidearm
             var v = spare;
             spare = null;
             if (v == null) return;
-            try { content.Controls.Remove(v); v.Dispose(); } catch (Exception) { }
+            RetireView(v, "spare");
         }
 
         // ───────────────────────── warm start ─────────────────────────

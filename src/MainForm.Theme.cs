@@ -96,8 +96,7 @@ namespace Sidearm
                     tabsView = null;
                     tabsReady = false;
                     tabsPx = 0;
-                    Controls.Remove(v);
-                    v.Dispose();
+                    RetireView(v, "bottom tabs");
                 }
                 LayoutChildren();
             }

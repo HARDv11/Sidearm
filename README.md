@@ -10,8 +10,9 @@
 
 The latest version is on the **[Releases](../../releases/latest)** page:
 
-- **`Sidearm-<version>-share-uk.zip`**: for everyone (starts in Ukrainian; switch to English in Settings → General).
-- **`Sidearm-<version>.zip`**: the same plus the source code in a `source` folder.
+- **`Sidearm-<version>.zip`**: English.
+- **`Sidearm-<version>-share-uk.zip`**: Ukrainian (the language can be switched any time in Settings → General).
+- The source code is under "Source code (zip)" on the same page.
 
 You need Windows 10 or 11 with the Microsoft Edge WebView2 Runtime (Windows 11 and an up-to-date Windows 10 already have it).
 
@@ -80,8 +81,9 @@ The result is in `build/Sidearm/`. Layout:
 
 Остання версія лежить на сторінці **[Releases](../../releases/latest)**:
 
-- **`Sidearm-<версія>-share-uk.zip`**: для всіх (стартує українською; англійську можна ввімкнути в Налаштування → Загальні).
-- **`Sidearm-<версія>.zip`**: те саме плюс вихідний код у папці `source`.
+- **`Sidearm-<версія>.zip`**: англійською.
+- **`Sidearm-<версія>-share-uk.zip`**: українською (мову можна змінити будь-коли в Налаштування → Загальні).
+- Вихідний код — за посиланням «Source code (zip)» на тій самій сторінці.
 
 Потрібна Windows 10 або 11 з Microsoft Edge WebView2 Runtime (на Windows 11 і оновленій Windows 10 він уже є).
 

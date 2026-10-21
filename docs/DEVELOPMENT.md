@@ -6,7 +6,7 @@ Sidearm is a pocket browser for Windows that you draw over a borderless game wit
 
 Sidearm is a small, always-on-top browser window for quick lookups mid-game. It doesn't replace your main browser: it's what you reach for when opening that browser would mean alt-tabbing out of a match. Tagline, used on the start page and tray: *Switching to your sidearm is faster than opening a browser.*
 
-It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.8.0 · Resupply.**
+It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.8.1 · Resupply.**
 
 **Non-negotiables**
 
@@ -24,9 +24,10 @@ There is no .NET SDK or NuGet in the build, so it uses Mono's C# compiler agains
 1. **Build.** `./build.sh` in the project root runs `mcs -sdk:4.5 -platform:x64 -target:winexe` over `src/*.cs` and copies the DLLs, `ui/` and `assets/README.txt` into `build/Sidearm/`. A clean build prints only `built build/Sidearm`. It needs `mcs` (Mono), `llvm-rc` and Python 3 with `pefile`.
 2. **Test.** `tests/run.sh` (add `ui` for headless screenshots; see Testing below).
 3. **Package.** `tools/release.sh` puts the release files in `build/release/` (see Releases and updates below):
-   - `Sidearm-<ver>.zip`: the build plus `source/` (`src`, `assets`, `build.sh`);
-   - `Sidearm-<ver>-share-uk.zip`: the build plus a `defaults.json` holding `{"language":"uk"}`, so it starts in Ukrainian. This is the one the updater installs;
-   - `Sidearm-<ver>-share-uk.zip.sha256`: its checksum.
+   - `Sidearm-<ver>.zip`: English, the build plus a `defaults.json` holding `{"language":"en"}`;
+   - `Sidearm-<ver>-share-uk.zip`: Ukrainian, the build plus `{"language":"uk"}`. This is the one the updater installs (it skips `defaults.json`, so it suits English copies too);
+   - a `.sha256` checksum for each.
+   The source code needs no zip of ours: GitHub attaches "Source code (zip / tar.gz)" to every release by itself.
 4. **Never include `data\`** in a zip or a commit: it holds cookies and sign-ins. The script refuses if it finds one.
 
 **Read the log after a release.** `data\sidearm.log` logs one line per event, and every version logs its name on the `starting` line, so you can tell which build produced which errors.
@@ -64,6 +65,7 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `src/QuickBar.cs`, `src/VideoWindow.cs` | The quick bar window (borderless, topmost, hides on focus loss and hands focus back) and the video pop-out window (tool window, opacity in its system menu) |
 | `src/MainForm.Paint.cs` | 0.8: makes sure the strip paints after a draw (`NudgeAfterShow`, the `painted` handshake, `KickView`) |
 | `src/MainForm.Home.cs` | 0.8: the start page's notes (`data\notes.txt`, `AppendNote` for `n …`) and pinned sites (`data\pins.json`, `PinPage`) |
+| `src/CrashCheck.cs` | 0.8.1: a `running.txt` note in `data\` while Sidearm runs; if it's still there at the next start, Windows' crash record (Application Error / .NET Runtime) is copied into the log |
 | `src/Updater.cs`, `src/MainForm.Update.cs` | 0.8: update check against GitHub Releases, download + SHA-256 check, file swap with `.old` copies, rollback, and the toast / Settings glue |
 | `src/Rates.cs`, `src/Chime.cs`, `src/Ublock.cs` | NBU exchange rates with a fallback and a disk cache; the in-memory timer chime; uBlock Origin Lite download, unpack and enable |
 | `src/FilterEngine.cs`, `Adblock.cs` | ABP-syntax filter engine (host fast path, token index, cosmetic rules by class / id) and list download and weekly update |
@@ -135,6 +137,8 @@ Everything talks through WebView2 web messages: pages call `chrome.webview.postM
 
 **Since 0.7.** Shell → strip also sends `timers` (`now`, `list` of `id`, `label`, `ends` in ms) and `rates` (the NBU snapshot); `init` carries `rates`, `currency` and `quickHotkey`. Shell → page adds `tr-inplace` (`on`, `to`) and `tr-result` (`id`, `texts`, or null when Google refused). The quick bar page talks to `QuickBar.cs` with `type: "quick"` and an `op`: `ready`, `layout` (`h`, device px), `go` (`url`, `newTab`), `zen`, `copy`, `timer`, `esc`, `settings`; the shell answers with `init`, `show`, `rates` and `timers`. The video pop-out takes only `esc`, plus `open` (`url`) from `pop.html`.
 
+**Since 0.8.1.** Strip → shell also sends `away` (the pointer reached the strip); shell → page relays it as `away`.
+
 **Since 0.8.** Strip → shell also sends `painted` (answer to `drawn`, from an animation frame), `alt` (`down`) and `note` (`text`); `cmd` takes `update` and `lookupOn`. The quick bar sends `op: "painted"` after `show` (which now carries `ox`, where the pointer is) and `op: "note"`.
 
 The page script's config is baked in at injection: `InjectScript()` replaces `/*SIDEARM_CFG*/{}` in `inject.js` with JSON. Changing a setting re-registers the script for future pages and posts `cfg` to open ones.
@@ -189,6 +193,8 @@ Each of these cost a build to learn. Read them before changing the area they tou
 - **The page script runs before `<html>` exists.** `document.documentElement` is null at that point: listen on `window` (0.8's first Alt relay broke the whole script this way).
 - **Alt only reaches the page with keyboard focus.** After a draw the focus is in the command bar, so the strip relays Alt (`alt` message) and the page does the look-up if the pointer is over it.
 - **Renaming a running exe is allowed; overwriting it isn't.** The updater renames every replaced file to `.old`, moves the new one in, and only deletes the `.old` files after the new version has run 30 s. It closes the page engine first so nothing in `ui\` is held open.
+- **Never dispose a view inside an engine event, or mid-suspend (0.8.1).** Disposing a WebView2 while the engine is still busy with it (a new-window request being answered, a `TrySuspendAsync` in flight) crashed the whole process in `EmbeddedBrowserWebView.dll` with an access violation, with nothing in our log. Close views only through `RetireView`: it hides the view and takes it off the window at once, and disposes it a moment later, after any suspend has finished. A page's new window always gets a fresh engine, never the spare.
+- **The engine's own link bubble can get stuck** when the pointer leaves the page for the strip (a separate window), so `IsStatusBarEnabled` is off and `inject.js` shows its own bubble; the strip sends `away` when the pointer reaches it.
 - **Embeds want a parent page.** YouTube refuses an embed opened as the top page (no referrer) and Twitch needs `parent=`, so the pop-out loads them inside `ui/pop.html`.
 
 **State and data**
@@ -237,7 +243,8 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 | Tag | `v<ver>`, the same version as `AssemblyInformationalVersion` in `src/Program.cs` (for example `v0.8.1`) | Compared number by number with the running version |
 | Release type | Published, **not** a draft or a pre-release | `releases/latest` ignores the others (a pre-release is a way to hold one back) |
 | Asset | `Sidearm-<ver>-share-uk.zip` with `Sidearm/Sidearm.exe` and `Sidearm/ui/` inside | The only file the updater installs; the download link must be on `github.com/HARDv11/Sidearm/releases/download/` |
-| Checksum | GitHub's own `digest` for the asset, or an attached `Sidearm-<ver>-share-uk.zip.sha256` | No checksum, no install. Attach the `.sha256` anyway: it's the fallback |
+| Asset (English) | `Sidearm-<ver>.zip` | For people who want English; the updater falls back to it if the Ukrainian zip is missing |
+| Checksum | GitHub's own `digest` for the asset, or an attached `<zip>.sha256` | No checksum, no install. Attach both `.sha256` files anyway: they're the fallback |
 | Notes | The release description | Shown in Settings → General → Updates (first 4,000 characters), so write them for users |
 
 **Copies older than 0.8 have no updater.** Anyone on 0.7.0 or earlier installs 0.8.x by hand once (unzip over the old folder, or into a new one and let it bring the data over). From then on, every published release reaches them by itself within a day of their next draw.
@@ -246,9 +253,9 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 
 1. `./build.sh`, then `tests/run.sh ui`. Everything passes; look at the screenshots in `tests/ui/shots/`.
 2. Bump the version: the three assembly attributes and `Version` in `src/Program.cs`, the title of `assets/README.txt` and its "NEW IN" section, and the changelog below. Build again.
-3. `tools/release.sh`. Upload the files it made, not older copies: each `.sha256` belongs to its own zip.
+3. `tools/release.sh`. Upload the four files it made (two zips, two `.sha256`), not older copies: each `.sha256` belongs to its own zip.
 4. Commit and push to `main`.
-5. On GitHub: Releases → Draft a new release → tag `v<ver>` on `main` → title `Sidearm <ver> · <name>` → notes → attach the three files → **Publish release**. (A Claude session can push code but gets 403 when it tries to create a release, so this step is done by hand. A GitHub Actions workflow that builds and publishes on a tag push would remove it; not tried yet.)
+5. On GitHub: Releases → Draft a new release → tag `v<ver>` on `main` → title `Sidearm <ver> · <name>` → notes → attach the four files → **Publish release**. (A Claude session can push code but gets 403 when it tries to create a release, so this step is done by hand. A GitHub Actions workflow that builds and publishes on a tag push would remove it; not tried yet.)
 6. Check that it arrived: in a running copy, Settings → General → Updates → Check now should say the new version is out. Then read `data\sidearm.log` after the update: `Update <ver>: … files swapped in`, then `Updated from <old> to <ver>` about 30 s after the restart.
 
 **If an update goes wrong on someone's PC.** Install failures put every file back and leave `data\update\failed.txt`, which the old version shows as a tray message at its next start. A new version that fails to start twice in a row is rolled back by itself (its log says `didn't start properly twice`). Replaced files sit next to the new ones as `*.old` until the new version has run for 30 s.
@@ -256,6 +263,23 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 ## Changelog
 
 Newest first. Every version name is in the log's `starting` line, so log entries can be matched to builds. Milestones 1–4 of the original plan map to 0.1, 0.3, 0.4 and 0.5.
+
+### 0.8.1 · Resupply — 2026-10-21
+
+*Fixes from a week with 0.8, and the first update delivered by the updater.*
+
+**Fixed**
+
+- A crash in the browser engine (`EmbeddedBrowserWebView.dll`, access violation) when a page opened a new tab while 5 tabs were open: the recycled tab's view was disposed in the middle of the new-window request. Views are now retired safely (`RetireView`), and new windows get a fresh engine.
+- The engine's link bubble stayed stuck at the bottom of the page. Replaced with Sidearm's own, in the accent color, which goes away when the pointer reaches the strip or Sidearm holsters.
+- On a search results page the bar showed the whole encoded address (`…search?q=%D1%87%D0%BE…`). It now shows the search words; editing them keeps the results' mode (`tbm=isch` stays), a new query goes to the usual engine. Other addresses are shown decoded.
+- The recent-searches list popped open on its own and covered the page. It now opens on typing or ↓ only, and while you edit a page's query it lists no recents.
+
+**Added**
+
+- The + new-tab button sits right after the last tab (with one tab it stays in the bar row).
+- `CrashCheck`: an unclean exit is noticed at the next start, and Windows' crash record goes into the log. New windows and recycled tabs are logged too.
+- Releases ship as `Sidearm-<ver>.zip` (English) and `Sidearm-<ver>-share-uk.zip` (Ukrainian), each with a `.sha256`.
 
 ### 0.8.0 · Resupply — 2026-10-18
 

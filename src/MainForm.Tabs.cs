@@ -28,6 +28,7 @@ namespace Sidearm
         public readonly HashSet<string> CosmeticSent = new HashSet<string>(StringComparer.Ordinal);
         public double ExpectZoom = 1.0;   // the last zoom Sidearm itself applied
         public bool IsGlance;
+        public bool ForNewWindow;        // made for a page's new-window request: gets a fresh engine, never the spare
         public string ZoomHost;           // site the current zoom belongs to
         public bool Muted, MuteKnown, MuteHinted, Audible;
         public string Lang = "";          // the page's language, as it reported it
@@ -101,18 +102,21 @@ namespace Sidearm
 
         // ───────────────────────── tab operations ─────────────────────────
 
-        async Task<Tab> OpenTab(string url, bool activate, bool navigate)
+        Task<Tab> OpenTab(string url, bool activate, bool navigate) { return OpenTab(url, activate, navigate, false); }
+
+        async Task<Tab> OpenTab(string url, bool activate, bool navigate, bool forNewWindow)
         {
             if (tabs.Count >= S.maxTabs)
             {
                 var victim = tabs.Where(t => t != active).OrderBy(t => t.LastActive).FirstOrDefault();
                 if (victim != null)
                 {
+                    Log.Info("Recycled a tab at the " + S.maxTabs + "-tab cap: " + HostOf(victim.Url));
                     RemoveTab(victim, true);
                     Toast("Recycled “" + Trim(victim.Title, 32) + "” (" + S.maxTabs + "-tab cap)", "Bring back", "reopen");
                 }
             }
-            var tab = new Tab { Id = ++nextTabId, Url = url ?? NewTabUrl, Title = url == null || url == NewTabUrl ? "New tab" : url };
+            var tab = new Tab { Id = ++nextTabId, Url = url ?? NewTabUrl, Title = url == null || url == NewTabUrl ? "New tab" : url, ForNewWindow = forNewWindow };
             int at = active != null ? tabs.IndexOf(active) + 1 : tabs.Count;
             tabs.Insert(Math.Max(0, Math.Min(at, tabs.Count)), tab);
             PushTabs();
@@ -244,8 +248,7 @@ namespace Sidearm
             tab.ZoomHost = null;
             tab.ExpectZoom = 1.0;
             if (v == null) return;
-            try { if (v.Parent != null) v.Parent.Controls.Remove(v); v.Dispose(); }
-            catch (Exception ex) { Log.Error("Dispose view", ex); }
+            RetireView(v, Trim(tab.Title, 30));
         }
 
         void ScheduleSuspend(Tab tab)
@@ -370,7 +373,7 @@ namespace Sidearm
             tab.ZoomHost = null;
             tab.ExpectZoom = 1.0;
             await EnsureEnvironment();
-            var v = tab.IsGlance ? null : TakeSpare(); // a ready engine skips the slow part
+            var v = tab.IsGlance || tab.ForNewWindow ? null : TakeSpare(); // a ready engine skips the slow part
             if (v == null)
             {
                 v = new WebView2 { DefaultBackgroundColor = PageColor, Dock = DockStyle.Fill, Visible = false };
@@ -379,12 +382,7 @@ namespace Sidearm
                 var forceHandle = v.Handle; // a hidden control would otherwise never initialise
                 await v.EnsureCoreWebView2Async(env);
             }
-            if (tab.Closed)
-            {
-                if (v.Parent != null) v.Parent.Controls.Remove(v);
-                v.Dispose();
-                return;
-            }
+            if (tab.Closed) { RetireView(v, "closed while opening"); return; }
             var core = v.CoreWebView2;
             ConfigureContent(core, tab);
             if (!string.IsNullOrEmpty(injectJs)) tab.InjectId = await core.AddScriptToExecuteOnDocumentCreatedAsync(InjectScript());
@@ -404,7 +402,7 @@ namespace Sidearm
         {
             var s = core.Settings;
             s.AreDevToolsEnabled = S.devTools;
-            s.IsStatusBarEnabled = true;
+            s.IsStatusBarEnabled = false; // 0.8.1: the page script shows where links go (the engine's bubble could get stuck)
             s.IsZoomControlEnabled = true;
             s.IsPasswordAutosaveEnabled = false;
             // Allow (with CORS) so any page can load Sidearm's fonts for the look-up card
@@ -495,8 +493,9 @@ namespace Sidearm
                     return;
                 }
                 bool background = (Control.ModifierKeys & Keys.Control) != 0 || (Control.MouseButtons & MouseButtons.Middle) != 0;
-                var tab = await OpenTab(e.Uri, !background, false);
-                if (tab.View != null && tab.View.CoreWebView2 != null)
+                Log.Info("New window: " + HostOf(e.Uri) + (background ? " (background tab)" : ""));
+                var tab = await OpenTab(e.Uri, !background, false, true);
+                if (tab.View != null && tab.View.CoreWebView2 != null && !tab.Closed)
                     e.NewWindow = tab.View.CoreWebView2; // keeps window.opener, so sign-in pop-ups work
             }
             catch (Exception ex) { Log.Error("New window", ex); }

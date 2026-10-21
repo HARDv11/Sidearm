@@ -370,15 +370,47 @@ namespace Sidearm
             Log.Info("Holstered: suspended " + count + " of " + views.Count + " views");
         }
 
+        /// <summary>Views with a suspend in flight: closing one of those mid-suspend is a way to crash the engine.</summary>
+        static readonly HashSet<WebView2> suspending = new HashSet<WebView2>();
+
         static async Task<bool> TrySuspend(WebView2 v)
         {
+            if (v == null || v.IsDisposed || v.Disposing || retiring.Contains(v)) return false;
+            suspending.Add(v);
             try
             {
-                if (v.IsDisposed || v.CoreWebView2 == null || v.CoreWebView2.IsSuspended) return false;
+                if (v.CoreWebView2 == null || v.CoreWebView2.IsSuspended) return false;
                 SetViewVisible(v, false); // a visible WebView refuses to suspend
                 return await v.CoreWebView2.TrySuspendAsync();
             }
             catch (Exception ex) { Log.Error("TrySuspend failed", ex); return false; }
+            finally { suspending.Remove(v); }
+        }
+
+        static readonly HashSet<WebView2> retiring = new HashSet<WebView2>();
+
+        /// <summary>
+        /// 0.8.1: closes a view safely. It's hidden and taken off the window now, but only disposed a moment later,
+        /// outside whatever engine event we're inside (a new-window request, a navigation) and after any suspend
+        /// in flight has finished. Disposing a view in the middle of those crashed the engine (EmbeddedBrowserWebView.dll).
+        /// </summary>
+        static void RetireView(WebView2 v, string why)
+        {
+            if (v == null || v.IsDisposed || retiring.Contains(v)) return;
+            retiring.Add(v);
+            try { SetViewVisible(v, false); if (v.Parent != null) v.Parent.Controls.Remove(v); } catch (Exception) { }
+            var t = new System.Windows.Forms.Timer { Interval = 400 };
+            int waited = 0;
+            t.Tick += (s, e) =>
+            {
+                waited += t.Interval;
+                if (suspending.Contains(v) && waited < 5000) return; // let the suspend finish first
+                t.Stop(); t.Dispose();
+                retiring.Remove(v);
+                try { if (!v.IsDisposed) v.Dispose(); }
+                catch (Exception ex) { Log.Error("Dispose view (" + why + ")", ex); }
+            };
+            t.Start();
         }
 
         /// <summary>Long holster: close the tab engines entirely, keep only their URLs.</summary>
@@ -426,7 +458,7 @@ namespace Sidearm
         /// </summary>
         static void SetViewVisible(WebView2 v, bool on)
         {
-            if (v == null || v.IsDisposed) return;
+            if (v == null || v.IsDisposed || v.Disposing || (on && retiring.Contains(v))) return;
             v.Visible = on;
             try
             {
@@ -632,6 +664,11 @@ namespace Sidearm
                         break;
                     case "note":
                         AppendNote(Json.Str(m, "text"), true);
+                        break;
+                    case "away":
+                        // the pointer moved from the page onto the strip: the page may not notice, so tell it
+                        if (active != null) PostToContent(active, new { t = "away" });
+                        if (glance != null) PostToContent(glance, new { t = "away" });
                         break;
                     case "alt":
                         // Alt held in the command bar: pass it to the page under the pointer for a word look-up

@@ -264,7 +264,9 @@
     Object.keys(tabNodes).forEach(function (id) {
       if (!keep[id]) { tabNodes[id].remove(); delete tabNodes[id]; }
     });
-    if (TABS_ONLY) {
+    // the + sits right after the last tab, where other browsers keep it (with one tab there's no tab row,
+    // so the + in the bar row does the job)
+    {
       if (!plusNode) {
         plusNode = node('button', 'tab-new');
         plusNode.title = 'New tab (Ctrl + T)';
@@ -302,7 +304,7 @@
       el.reload.title = loading ? 'Stop' : 'Reload (F5)';
       el.reload.dataset.op = op;
     }
-    if (document.activeElement !== el.input && el.input.value !== url) el.input.value = url;
+    if (document.activeElement !== el.input && el.input.value !== shown(url)) el.input.value = shown(url);
     el.sound.hidden = !(t && t.audible);
     var snd = t && t.audible ? (t.muted ? 'muted' : 'sound') : '';
     if (snd && el.sound.dataset.k !== snd) {
@@ -324,14 +326,51 @@
     el.input.placeholder = 'Search ' + engineName() + (keys ? ', or ' + keys + ' …' : '');
   }
 
+  // ───────────── what the bar shows for a page (0.8.1) ─────────────
+  // A search results page shows what you searched for, as text, so changing two words is just that.
+  // Other addresses are shown decoded (Cyrillic stays Cyrillic instead of %D0%B1…).
+  var SEARCH_PAGES = [
+    { host: /(^|\.)google\.[a-z.]+$/, path: /^\/search/, param: 'q' },
+    { host: /(^|\.)youtube\.com$/, path: /^\/results/, param: 'search_query' },
+    { host: /(^|\.)bing\.com$/, path: /^\/(images\/|videos\/)?search/, param: 'q' },
+    { host: /(^|\.)duckduckgo\.com$/, path: /^\/$/, param: 'q' },
+    { host: /(^|\.)wikipedia\.org$/, path: /^\/w\/index\.php/, param: 'search' }
+  ];
+  function searchOf(url) {
+    try {
+      var u = new URL(url);
+      for (var i = 0; i < SEARCH_PAGES.length; i++) {
+        var sp = SEARCH_PAGES[i];
+        if (!sp.host.test(u.hostname) || !sp.path.test(u.pathname)) continue;
+        var q = u.searchParams.get(sp.param);
+        if (q && q.trim()) return { query: q, url: url, param: sp.param };
+      }
+    } catch (e) {}
+    return null;
+  }
+  function sharesWord(a, b) {
+    var w = (b || '').toLowerCase().split(/\s+/).filter(Boolean);
+    return (a || '').toLowerCase().split(/\s+/).some(function (x) { return x && w.indexOf(x) >= 0; });
+  }
+  function shown(url) {
+    if (!url) return '';
+    var s = searchOf(url);
+    if (s) return s.query;
+    try { return decodeURI(url); } catch (e) { return url; }
+  }
+
   function focusBar(selectAll) {
     var t = activeTab();
-    el.input.value = t && t.url ? t.url : '';
+    var url = t && t.url ? t.url : '';
+    state.search = searchOf(url);
+    state.pageUrl = url;
+    el.input.value = shown(url);
     state.focusValue = el.input.value;
     el.input.focus();
     if (selectAll) el.input.select();
     update(false);
-    if (!el.input.value) openPalette(); else closePalette();
+    // nothing pops open by itself: type, or press Down for recent searches
+    closePalette();
   }
 
   function update(open) {
@@ -362,7 +401,7 @@
     } else if (bare) {
       items.push({ type: 'bang', tag: bare.key, label: bare.name, sub: 'type your search', key: bare.key });
     } else if (r.kind === 'empty' || unchanged) {
-      if (unchanged && r.url) items.push({ type: 'go', tag: 'Go', label: hostOf(r.url) || text, sub: 'Reload this address', url: r.url, text: text });
+      if (unchanged && state.pageUrl) items.push({ type: 'go', tag: 'Go', label: hostOf(state.pageUrl) || text, sub: 'Reload this address', url: state.pageUrl, text: text });
       loadRecents().slice(0, 8).forEach(function (q) { items.push({ type: 'recent', text: q }); });
     } else {
       if (r.kind === 'calc') items.push({ type: 'copy', tag: 'Calc', label: '= ' + r.display, sub: trimmed, copy: r.copy });
@@ -384,7 +423,8 @@
         items.push({ type: 'bang', tag: b.key, label: b.name, sub: 'then your search', key: b.key });
       });
       var low = trimmed.toLowerCase();
-      loadRecents().filter(function (q) { return q.toLowerCase() !== low && q.toLowerCase().indexOf(low) >= 0; })
+      // over a page you're editing what's there: keep the list short so it doesn't cover the page
+      if (!state.focusValue) loadRecents().filter(function (q) { return q.toLowerCase() !== low && q.toLowerCase().indexOf(low) >= 0; })
         .slice(0, 5).forEach(function (q) { items.push({ type: 'recent', text: q }); });
     }
     state.items = items;
@@ -509,14 +549,26 @@
       showToast('Copied ' + r.copy);
       return;
     }
-    go(r.url, text.trim(), newTab);
+    var url = r.url;
+    if (r.kind === 'search' && state.search && sharesWord(text, state.search.query)) {
+      // editing the query of a results page: same engine, same tab (Images stays Images), new words.
+      // Something entirely new goes to your usual search engine.
+      try {
+        var u = new URL(state.search.url);
+        u.searchParams.set(state.search.param, text.trim());
+        ['start', 'first', 'sp', 'page'].forEach(function (k) { u.searchParams.delete(k); });
+        url = u.href;
+      } catch (e) {}
+    }
+    go(url, text.trim(), newTab);
   }
 
   function go(url, text, newTab) {
     if (!url) return;
     if (text && !/^https?:\/\//i.test(text)) addRecent(text);
     closePalette();
-    state.focusValue = url;
+    state.focusValue = shown(url);
+    state.search = searchOf(url);
     send({ type: 'navigate', url: url, newTab: !!newTab });
     el.input.blur();
   }
@@ -530,13 +582,14 @@
       el.bar.classList.remove('focus');
       closePalette();
       var t = activeTab();
-      el.input.value = t && t.url ? t.url : '';
+      el.input.value = shown(t && t.url ? t.url : '');
     }, 0);
   });
   el.input.addEventListener('input', function () { update(true); });
   el.input.addEventListener('copy', function (e) {
     var v = el.input.value, a = el.input.selectionStart, b = el.input.selectionEnd;
     if (a !== 0 || b !== v.length || !/^https?:\/\//i.test(v)) return;
+    if (state.pageUrl && v === shown(state.pageUrl)) v = state.pageUrl; // the decoded address copies as the real one
     e.preventDefault();
     send({ type: 'copy', text: v, clean: true });
   });
@@ -937,6 +990,18 @@
         break;
     }
   }
+
+  // the pointer came onto the strip from the page: the page's link bubble and Alt look-up should let go
+  {
+    var pointerHere = false;
+    document.addEventListener('mousemove', function () { if (!pointerHere) { pointerHere = true; send({ type: 'away' }); } }, true);
+    document.addEventListener('mouseout', function (e) { if (!e.relatedTarget) pointerHere = false; }, true);
+  }
+
+  // the window can get focus a moment after the bar did: keep what's shown selected, so typing replaces it
+  window.addEventListener('focus', function () {
+    if (document.activeElement === el.input && el.input.value === state.focusValue && el.input.value) el.input.select();
+  });
 
   // Alt held while typing here: the shell passes it to the page under the pointer for a word look-up
   var altRelay = false;

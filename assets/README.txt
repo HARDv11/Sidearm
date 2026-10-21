@@ -1,4 +1,4 @@
-SIDEARM 0.8.0 · "Resupply"
+SIDEARM 0.8.1 · "Resupply"
 "Switching to your sidearm is faster than opening a browser."
 
 START
@@ -24,6 +24,17 @@ UPDATING
      over your sign-ins, open tabs and settings. Say yes, and you're still signed in everywhere.
   By hand: copy the old "data" folder next to the new Sidearm.exe before its first start.
   Never send your data folder to anyone: it holds your sign-ins.
+
+NEW IN 0.8.1
+  Command bar           on a search results page the bar shows the words you searched for (not a long
+                        encoded address): change two words and press Enter, and Google Images stays Images.
+                        The list of recent searches no longer pops open by itself: type, or press Down
+  New tab button        the + now sits right after the last tab
+  Link preview          hovering a link shows where it goes at the bottom, in your color; it no longer
+                        gets stuck on screen
+  Fixed                 a crash in the browser engine when a page opened a new tab while 5 tabs were open
+                        (tabs are now closed safely, after the engine is done with them). If Sidearm ever
+                        ends without quitting, the next start copies Windows' crash report into the log
 
 NEW IN 0.8.0
   Updates               one click from the "is out" message, or Settings -> General -> Updates

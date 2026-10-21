@@ -12,15 +12,15 @@ using Microsoft.Web.WebView2.Core;
 [assembly: AssemblyDescription("Sidearm pocket browser: an always-on-top browser window you call up mid-game.")]
 [assembly: AssemblyCompany("Sidearm project")]
 [assembly: AssemblyCopyright("Copyright © 2026 Sidearm project")]
-[assembly: AssemblyVersion("0.8.0.0")]
-[assembly: AssemblyFileVersion("0.8.0.0")]
-[assembly: AssemblyInformationalVersion("0.8.0")]
+[assembly: AssemblyVersion("0.8.1.0")]
+[assembly: AssemblyFileVersion("0.8.1.0")]
+[assembly: AssemblyInformationalVersion("0.8.1")]
 
 namespace Sidearm
 {
     internal static class Program
     {
-        public const string Version = "0.8.0 · Resupply";
+        public const string Version = "0.8.1 · Resupply";
         public const string Tagline = "Switching to your sidearm is faster than opening a browser.";
 
         public static string AppDir, DataDir, UiDir;
@@ -87,6 +87,7 @@ namespace Sidearm
             catch (Exception) { try { System.Net.ServicePointManager.SecurityProtocol = (System.Net.SecurityProtocolType)3072; } catch (Exception) { } }
 
             Log.Info("Sidearm " + Version + " starting. WebView2 runtime " + runtime + ". .NET " + Environment.Version + ". Data: " + DataDir);
+            CrashCheck.Start(); // did the last session end normally? if not, copy Windows' crash record into the log
             Migrate.OfferIfFirstRun(); // a new copy in a new folder: bring the old sign-ins and tabs along
             var settings = Settings.Load(Path.Combine(DataDir, "settings.json"));
             bool startInTray = Array.Exists(args, a => string.Equals(a, "--tray", StringComparison.OrdinalIgnoreCase));
@@ -98,6 +99,7 @@ namespace Sidearm
                 Application.Run(new ApplicationContext());
             }
             GC.KeepAlive(mutex);
+            CrashCheck.End();
             Log.Info("Sidearm exited");
             return 0;
         }
