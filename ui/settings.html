@@ -13,7 +13,7 @@
 <header class="s-top">
   <div class="s-title"><svg viewBox="0 0 24 24" class="s-ret"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v6M12 16.5v6M1.5 12h6M16.5 12h6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>Settings</div>
   <nav class="s-nav">
-    <a href="#general">General</a><a href="#quick">Quick bar</a><a href="#look">Look</a><a href="#search">Search</a><a href="#pages">Pages</a><a href="#lookup">Look-up</a>
+    <a href="#general">General</a><a href="#raven" id="ravenNav">Raven</a><a href="#quick">Quick bar</a><a href="#look">Look</a><a href="#search">Search</a><a href="#pages">Pages</a><a href="#lookup">Look-up</a>
     <a href="#links">Links</a><a href="#translate">Translation</a><a href="#gestures">Gestures</a><a href="#feel">Feel</a><a href="#ai">Ask AI</a><a href="#wiki">Wikipedia</a><a href="#sites">Sites</a><a href="#speed">Speed</a><a href="#advanced">Advanced</a>
   </nav>
   <span id="saved" class="s-saved">Saved</span>
@@ -32,6 +32,7 @@
       <span class="s-btns"><button id="updCheck" class="pbtn">Check now</button><button id="updNow" class="pbtn accent" hidden>Update</button></span></div>
     <div class="s-upd" id="updNotes" hidden><b id="updTitle" data-raw></b><pre id="updText" data-raw></pre></div>
     <div class="s-row"><div><b>Check for updates</b><small>Once a day, from Sidearm's page on GitHub. Nothing installs until you click Update, and the data folder (sign-ins, notes) is never touched.</small></div><span data-bool="updateCheck"></span></div>
+    <div class="s-row"><div><b>Pop-outs hide with Sidearm</b><small>Popped-out pages and videos go away when you holster and come back when you draw. Off: they stay up over the game.</small></div><span data-bool="popsHide"></span></div>
     <div class="s-row"><div><b>Snap to screen edges</b><small>A window dropped near an edge jumps to it. Hold Shift while you let go to skip it once.</small></div><span data-bool="snapEdges"></span></div>
     <div class="s-row"><div><b>Theme</b><small>System follows Windows' light/dark setting.</small></div>
       <span class="s-seg" data-choice="theme"><button data-v="dark">Dark</button><button data-v="light">Light</button><button data-v="system">System</button></span></div>
@@ -41,6 +42,27 @@
       <span class="s-seg" data-choice="language"><button data-v="en" data-raw>English</button><button data-v="uk" data-raw>Українська</button></span></div>
     <div class="s-row"><div><b>Window opacity</b><small>Also: Ctrl + scroll on the top strip.</small></div><span class="s-range"><input type="range" min="30" max="100" step="5" data-range="opacity" data-scale="100"><output></output></span></div>
     <div class="s-row"><div><b>Interface size</b><small>The strip, bar, tabs and menus.</small></div><span class="s-range"><input type="range" min="85" max="150" step="5" data-range="uiScale" data-scale="100"><output></output></span></div>
+  </section>
+
+  <section id="raven" class="s-raven">
+    <h2 id="ravenH">Raven</h2>
+    <p class="s-note">Messages and links to your friends' Sidearms. They're encrypted on this PC; Sidearm's post office (on Cloudflare) only passes them on and can't read them.</p>
+    <div class="s-row"><div><b id="ravenOnL">Raven</b><small id="ravenStatus" class="s-status">Off</small></div><span data-bool="raven"></span></div>
+    <div class="s-raven-more">
+    <div class="s-row"><div><b>Friends</b><small id="ravenFriends" class="s-status">…</small></div>
+      <span class="s-btns"><button id="ravenList" class="pbtn">Chats</button><button id="ravenAdd" class="pbtn accent">Add a friend</button></span></div>
+    <div class="s-row"><div><b>Your call sign</b><small>How you sign to friends. They can rename you on their side.</small></div><input type="text" data-text="callsign" class="s-text" maxlength="24" spellcheck="false" placeholder="Оля, Sasha, …"></div>
+    <div class="s-block"><div class="s-blockhead"><b>Your avatar</b><small>Friends see which one you picked: only its number travels, not the picture.</small></div>
+      <div class="s-avatars" id="avatars"></div></div>
+    <div class="s-row"><div><b>Name</b><small>Only what it's called in menus and hints. It works the same.</small></div>
+      <span class="s-seg" data-choice="ravenName"><button data-v="raven">Raven</button><button data-v="courier">Courier</button><button data-v="radio">Radio</button><button data-v="pigeon">Pigeon</button><button data-v="dispatch">Dispatch</button></span></div>
+    <div class="s-row"><div><b>Unread on the start page</b><small>A block above the notes. Pinned first: friends you starred come first, everyone else when they haven't written.</small></div>
+      <span class="s-seg" data-choice="ravenHome"><button data-v="pinned">Pinned first</button><button data-v="all">Everyone</button><button data-v="off">Off</button></span></div>
+    <div class="s-row"><div><b>Tabs beside the window</b><small>Whoever wrote gets a tab with their avatar at Sidearm's edge; the wing opens every chat. Against the left edge of the screen they move to the right.</small></div><span data-bool="ravenTabs"></span></div>
+    <div class="s-row"><div><b>Quick replies</b><small>Ready answers on the card that pops up, up to 5, separated by |. Empty: the usual ones.</small></div><input type="text" data-text="quickReplies" class="s-text wide" spellcheck="false" placeholder="Yes | No | 5 min"></div>
+    <div class="s-row"><div><b>Delete Raven</b><small>Your keys, friends and messages on this PC, and your inbox on the post office. Friends can't reach you until you add them again.</small></div>
+      <span class="s-btns"><button id="ravenDelete" class="pbtn">Delete</button></span></div>
+    </div>
   </section>
 
   <section id="quick">

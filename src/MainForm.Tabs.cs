@@ -29,6 +29,8 @@ namespace Sidearm
         public double ExpectZoom = 1.0;   // the last zoom Sidearm itself applied
         public bool IsGlance;
         public bool ForNewWindow;        // made for a page's new-window request: gets a fresh engine, never the spare
+        public PageWindow Pop;           // 0.9: popped out into its own window (and off the strip)
+        public bool HadView;             // 0.9: a view existed before (it was unloaded or the tab came back from the session)
         public string ZoomHost;           // site the current zoom belongs to
         public bool Muted, MuteKnown, MuteHinted, Audible;
         public string Lang = "";          // the page's language, as it reported it
@@ -93,7 +95,8 @@ namespace Sidearm
             try
             {
                 // amnesia keeps nothing between sessions
-                var list = S.amnesia ? new List<object>() : tabs.Select(t => (object)new { url = t.Url, title = t.Title }).ToList();
+                // popped-out pages come back as tabs next time
+                var list = S.amnesia ? new List<object>() : tabs.Concat(PoppedTabs).Select(t => (object)new { url = t.Url, title = t.Title }).ToList();
                 string json = Json.Pretty(Json.Serialize(new { active = Math.Max(0, tabs.IndexOf(active)), tabs = list }));
                 File.WriteAllText(SessionPath, json);
             }
@@ -186,6 +189,7 @@ namespace Sidearm
         {
             try
             {
+                if (tab.Pop != null) { tab.Pop.Close(); return; } // a popped-out page closes with its window
                 if (tabs.Count == 1)
                 {
                     // Never zero tabs: the last one just goes back to the start page.
@@ -387,6 +391,7 @@ namespace Sidearm
             ConfigureContent(core, tab);
             if (!string.IsNullOrEmpty(injectJs)) tab.InjectId = await core.AddScriptToExecuteOnDocumentCreatedAsync(InjectScript());
             tab.View = v;
+            tab.HadView = true;
             if (navigate) core.Navigate(tab.Url);
         }
 
@@ -430,7 +435,7 @@ namespace Sidearm
             core.NavigationCompleted += (sender, e) =>
             {
                 tab.Loading = false;
-                OnPageLoaded(tab, e.IsSuccess);
+                OnPageLoaded(tab, e.IsSuccess, e.IsSuccess ? null : e.WebErrorStatus.ToString());
                 if (pendingGeminiPrompt != null) FillGemini(tab);
                 PushTabs();
             };
@@ -448,6 +453,7 @@ namespace Sidearm
             core.DocumentTitleChanged += (sender, e) =>
             {
                 tab.Title = tab.IsNewTab ? "New tab" : (string.IsNullOrWhiteSpace(core.DocumentTitle) ? tab.Url : core.DocumentTitle);
+                if (tab.Pop != null && !tab.Pop.IsDisposed) tab.Pop.Text = "Sidearm · " + Trim(tab.Title, 60);
                 PushTabs();
                 SaveSessionSoon();
             };
@@ -461,7 +467,21 @@ namespace Sidearm
             {
                 if (tab == active) SetFullscreen(core.ContainsFullScreenElement);
             };
-            core.WindowCloseRequested += (sender, e) => { if (tab.IsGlance) CloseGlance(); else CloseTab(tab, false); };
+            // 0.9: a page may close only a tab that a page opened, and only in that first engine. After an unload or a
+            // restart the tab has a one-entry history, so Chromium lets any script close it: HoYoLAB's interactive map
+            // did exactly that, and the tab vanished.
+            bool mayClose = tab.IsGlance || tab.ForNewWindow && !tab.HadView;
+            core.WindowCloseRequested += (sender, e) =>
+            {
+                if (tab.IsGlance) { CloseGlance(); return; }
+                if (!mayClose || tab.Closed)
+                {
+                    Log.Info("A page asked to close its tab, kept it: " + HostOf(tab.Url) + (tab.ForNewWindow ? " (reloaded since a page opened it)" : " (you opened it)"));
+                    return;
+                }
+                Log.Info("A page closed the tab it opened: " + HostOf(tab.Url));
+                CloseTab(tab, true);
+            };
             core.NewWindowRequested += (sender, e) => OnNewWindow(e);
             core.WebMessageReceived += (sender, e) => OnContentMessage(tab, e);
             core.ProcessFailed += (sender, e) =>
@@ -510,7 +530,7 @@ namespace Sidearm
             string t = Json.Str(m, "t");
             if (t == null) return;
             // the start page keeps its notes and pinned sites through the shell; web pages can't touch them
-            if (t == "home-get" || t.StartsWith("notes-", StringComparison.Ordinal) || t.StartsWith("pins-", StringComparison.Ordinal))
+            if (t == "home-get" || t == "raven-open" || t.StartsWith("notes-", StringComparison.Ordinal) || t.StartsWith("pins-", StringComparison.Ordinal))
             {
                 if (IsStartPage(e.Source)) OnHomeMessage(tab, m);
                 return;
@@ -539,6 +559,12 @@ namespace Sidearm
                 else if (t == "gesture") OnGesture(tab, Json.Str(m, "a"));
                 else if (t == "home") GoHome();
                 else if (t == "lookup" && S.lookup) DoLookup(tab, (int)Json.Num(m, "id", 0), Json.Str(m, "text"));
+                return;
+            }
+            if (tab.Pop != null)
+            {
+                // a popped-out page: word look-up works there too, the rest is the strip's business
+                if (t == "lookup" && S.lookup) DoLookup(tab, (int)Json.Num(m, "id", 0), Json.Str(m, "text"));
                 return;
             }
             if (tab != active) return;
@@ -634,7 +660,10 @@ namespace Sidearm
                         add.Add(MenuItem("Open link in " + bn + " (private)", () => SendToBrowser(link, true)));
                     }
                     add.Add(MenuItem("Send link to " + AiName, () => OpenAI("Here's a link: " + link + "\n\n")));
+                    if (RavenReady && IsWebUrl(link)) add.Add(MenuItem("Send link to a friend", () => SendToFriend(link, target.LinkText)));
                 }
+                if (sel.Length == 0 && !target.HasLinkUri && tab.Pop == null && !tab.IsGlance && IsWebUrl(target.PageUri) && !target.PageUri.StartsWith(UiOrigin, StringComparison.OrdinalIgnoreCase))
+                    add.Add(MenuItem("Pop out this page  (Alt+Shift+P)", () => PopOutPage(tab)));
                 if (sel.Length == 0 && !target.HasLinkUri && (target.Kind == CoreWebView2ContextMenuTargetKind.Video || tab.HasVideo || IsVideoSite(target.PageUri)))
                     add.Add(MenuItem("Pop out video  (Alt+P)", () => PopOutVideo(tab)));
                 if (sel.Length == 0)
@@ -646,6 +675,7 @@ namespace Sidearm
                         add.Add(MenuItem("Open page in " + BrowserName, () => SendToBrowser(pageUrl, false)));
                         add.Add(MenuItem("Copy page link", () => CopyLink(pageUrl)));
                         add.Add(MenuItem("Pin to start page", () => PinPage(tab)));
+                        if (RavenReady) add.Add(MenuItem("Send page to a friend", () => SendToFriend(pageUrl, core.DocumentTitle)));
                     }
                 }
                 // the built-in "Copy link" copies the tracking junk too; ours copies the clean link

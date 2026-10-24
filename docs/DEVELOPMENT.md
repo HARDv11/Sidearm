@@ -6,7 +6,7 @@ Sidearm is a pocket browser for Windows that you draw over a borderless game wit
 
 Sidearm is a small, always-on-top browser window for quick lookups mid-game. It doesn't replace your main browser: it's what you reach for when opening that browser would mean alt-tabbing out of a match. Tagline, used on the start page and tray: *Switching to your sidearm is faster than opening a browser.*
 
-It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.8.2 · Resupply.**
+It is a C# WinForms shell around Microsoft's WebView2 (the Chromium engine built into Windows), with every visible surface written in plain HTML, CSS and JavaScript. **Current version: 0.9.0 · Raven** (Ворон in Ukrainian).
 
 **Non-negotiables**
 
@@ -45,6 +45,8 @@ The shell is the only thing that touches Windows, the disk or the network on Sid
 
 **Life of a page.** `NavigationStarting` resets the tab's counters and timer. `WebResourceRequested` runs every request through `FilterEngine.ShouldBlock`. The page script sends its classes and ids for cosmetic hiding and reports its language. `NavigationCompleted` logs the load time and Sidearm's share of it.
 
+**Raven since 0.9.** Messages between friends' Sidearms go through the post office in `server/` (a Cloudflare Worker, one SQLite Durable Object per inbox). The engine, `ui/raven-core.js`, runs inside the strip page: WebCrypto keys, signed requests, AES-GCM, one WebSocket. With Raven on, the strip view is never suspended, because it holds the connection. The shell keeps the files (`RavenStore`, `data\raven\`) and draws the windows: the side tabs (`RavenTabs`, painted by WinForms, no web view) and the chat (`RavenWindow`, `ui/raven.html`, made on first use like the quick bar).
+
 **Two more windows since 0.7.** The quick bar (`QuickBar`, `ui/quick.html`) and the video pop-out (`VideoWindow`) are top-level windows with their own web views in the same engine environment, so they share cookies, logins and recent searches. The quick bar is created on first use, suspended 30 s after it hides and dropped with the tabs after a long holster; the pop-out lives until it's closed, through holsters.
 
 ## Repository layout
@@ -68,6 +70,12 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `src/MainForm.Home.cs` | 0.8: the start page's notes (`data\notes.txt`, `AppendNote` for `n …`) and pinned sites (`data\pins.json`, `PinPage`) |
 | `src/Shortcuts.cs` | 0.8.1: `Sidearm.lnk` on the desktop and in Start (IShellLink), and moving them along when a new copy starts in another folder. Sidearm is a tool window with no taskbar button, so these are how it gets pinned |
 | `src/CrashCheck.cs` | 0.8.1: a `running.txt` note in `data\` while Sidearm runs; if it's still there at the next start, Windows' crash record (Application Error / .NET Runtime) is copied into the log |
+| `src/ClipHistory.cs`, `src/MainForm.Clips.cs` | 0.9: clipboard history (`cb`, Alt + V). Memory only; no clipboard listener, see the gotcha |
+| `src/FloatWindow.cs`, `src/PageWindow.cs`, `src/MainForm.Pop.cs` | 0.9: what the pop-outs share (title-bar menu, opacity, ghost), the page pop-out window, and moving a tab's view into it and back |
+| `src/GlanceRail.cs` | 0.9: Glance's round buttons, painted by WinForms; also the wing icon (a tiny SVG path reader) |
+| `src/RavenStore.cs`, `src/MainForm.Raven.cs`, `src/MainForm.RavenUi.cs`, `src/RavenTabs.cs`, `src/RavenWindow.cs` | 0.9: Raven's files, its logic in the shell, the side tabs and the chat window |
+| `ui/raven-core.js`, `ui/raven.html`, `ui/raven.js`, `ui/avatars/` | 0.9: Raven's engine (also runs in Node for tests), its window, and the five avatars (WebP for pages, a small PNG for the side tabs) |
+| `server/` | 0.9: the post office (see `server/README.md`); deployed by `.github/workflows/deploy-post-office.yml` on every push that touches it |
 | `src/Updater.cs`, `src/MainForm.Update.cs` | 0.8: update check against GitHub Releases, download + SHA-256 check, file swap with `.old` copies, rollback, and the toast / Settings glue |
 | `src/Rates.cs`, `src/Chime.cs`, `src/Ublock.cs` | NBU exchange rates with a fallback and a disk cache; the in-memory timer chime; uBlock Origin Lite download, unpack and enable |
 | `src/FilterEngine.cs`, `Adblock.cs` | ABP-syntax filter engine (host fast path, token index, cosmetic rules by class / id) and list download and weekly update |
@@ -141,6 +149,14 @@ Everything talks through WebView2 web messages: pages call `chrome.webview.postM
 
 **Since 0.8.1.** Strip → shell also sends `away` (the pointer reached the strip); shell → page relays it as `away`.
 
+**Since 0.9.**
+- Strip → shell: `clip` (`op`: restore with `id`, clear, get), `raven` (the engine's events: `identity`, `online`, `incoming`, `request`, `log`, and `result` with the `req` of a question), `ravenSend` (`key`, `text`, `withPage`: the bar's @name). `page` takes `op: "popPage"`; `cmd` takes `ravenRequests`.
+- Shell → strip: `clips` (`list` of `id`, `kind`, `text` (first 300 characters), `chars`, `thumb`, `w`, `h`, `at`), `prefill` (`text`: Alt + V opens the bar on `cb `), `raven-friends` (`list` of `key`, `name`, `av`) and `raven` with an `op` for the engine: `start` (`server`, `identity`, `friends`), `stop`, and questions with a `req`: `friends` (`friends`, `push`), `invite`, `readCode` (`code`), `request` (`code`, `profile`), `send` (`to`, `id`, `body`), `delete`. Messages starting `{"type":"raven` or `{"type":"clips"` never go to the bottom tab strip.
+- Start page → shell: `raven-open` (`key`, or `*` for all chats); shell → start page: `raven-home` (`raven`: `on`, `title`, `requests`, `total`, `list`).
+- `raven.html` ↔ `RavenWindow` (only from that page): page sends `ready`, `close`, `mode` (`mode`, `key`, `focus`), `read`, `send` (`key`, `text`, `url`, `title`), `link`, `copy`, `invite`, `readCode`, `add` (`code`, `alias`), `accept`, `reject`, `remove`, `rename`, `pin`, `settings`, `layout` (`h`); the shell sends `state`, `chat` (`key`, `msgs`), `show` (`mode`, `key`, `page`), `invite`, `code`, `added`, `accepted`, `error`.
+- Quick bar → shell: `op: "clip"` (`id`); shell → quick bar: `clips`, `raven-friends`.
+- Raven's messages themselves (what the post office carries) are described in `ui/raven-core.js` and `server/README.md`.
+
 **Since 0.8.** Strip → shell also sends `painted` (answer to `drawn`, from an animation frame), `alt` (`down`) and `note` (`text`); `cmd` takes `update` and `lookupOn`. The quick bar sends `op: "painted"` after `show` (which now carries `ox`, where the pointer is) and `op: "note"`.
 
 The page script's config is baked in at injection: `InjectScript()` replaces `/*SIDEARM_CFG*/{}` in `inject.js` with JSON. Changing a setting re-registers the script for future pages and posts `cfg` to open ones.
@@ -161,6 +177,9 @@ Everything the user can change lives in `data\settings.json`, and the settings p
 | `zoom.json` | Per-site zoom (`hoyolab.com`); per-host entries from before 0.8 still win for their host |
 | `notes.txt` | 0.8: the start page's notes box (amnesia mode doesn't touch it) |
 | `pins.json` | 0.8: pinned sites, `[{ title, url, icon }]`; missing = the two examples |
+| `raven\identity.json` | 0.9: Raven's keys (two P-256 key pairs as JWK, made by `raven-core.js`). Whoever has this file can write as you. Not DPAPI-protected on purpose: CryptUnprotectData is what password stealers call, and scanners judge by it |
+| `raven\friends.json` | 0.9: friends (`key`, `dh`, `name`, `alias`, `av`, `pinned`, `status`: friend / waiting / request, the four words, `unread`) |
+| `raven\history.json` | 0.9: the last 200 messages with each friend |
 | `update\` | 0.8: `pending.json` while a fresh update is unconfirmed, `failed.txt` after a failed install, the download while it runs |
 | `rates.json` | The last exchange rates (`date`, `source`, hryvnias per unit) |
 | `filters\` | Downloaded filter lists (EasyList, EasyPrivacy, EasyList Cookie), refreshed weekly; downloaded on first start since 0.7 |
@@ -197,6 +216,11 @@ Each of these cost a build to learn. Read them before changing the area they tou
 - **Renaming a running exe is allowed; overwriting it isn't.** The updater renames every replaced file to `.old`, moves the new one in, and only deletes the `.old` files after the new version has run 30 s. It closes the page engine first so nothing in `ui\` is held open.
 - **Never dispose a view inside an engine event, or mid-suspend (0.8.1).** Disposing a WebView2 while the engine is still busy with it (a new-window request being answered, a `TrySuspendAsync` in flight) crashed the whole process in `EmbeddedBrowserWebView.dll` with an access violation, with nothing in our log. Close views only through `RetireView`: it hides the view and takes it off the window at once, and disposes it a moment later, after any suspend has finished. A page's new window always gets a fresh engine, never the spare.
 - **The engine's own link bubble can get stuck** when the pointer leaves the page for the strip (a separate window), so `IsStatusBarEnabled` is off and `inject.js` shows its own bubble; the strip sends `away` when the pointer reaches it.
+- **A page may close only a tab it opened (0.9).** `window.close()` raises `WindowCloseRequested`. After an unload or a restart a tab has a one-entry history, and Chromium lets any script close such a window: HoYoLAB's interactive map closed its own tab that way. Now only a tab made for a page's new-window request, in its first engine, honors it; every close and every refusal is logged.
+- **Moving a view between windows (0.9).** A pop-out takes the tab's own `WebView2` control: `content.Controls.Remove`, then the pop-out's `Controls.Add`. WinForms re-parents the window; in case it ever makes a new handle, `RepairParent` points the controller's `ParentWindow` at it. Before a pop-out closes, the view is taken out (`Release`), or closing the form would dispose it inside the close.
+- **Raven keeps the strip awake (0.9).** The engine and its WebSocket live in the strip page, so `SleepAll` skips the strip view while Raven runs. It's one idle page; nothing else changes.
+- **The post office needs CORS (0.9).** Sidearm's pages are on `https://sidearm.example`, so the browser asks first (OPTIONS) before a call with the `X-Sidearm-*` headers. The Worker answers with `Access-Control-Allow-*` and exposes `Date` (a client whose clock is off by more than 5 minutes fixes itself from it once). Node doesn't do CORS, so `tests/ui/raven-ui-test.js` runs the engine inside the real strip page to check it.
+- **No clipboard listener (0.9).** `AddClipboardFormatListener` plus clipboard reads is a stealer pattern for scanners. Clipboard history compares `GetClipboardSequenceNumber` on a 700 ms timer, only while Sidearm or the quick bar is up, and reads the clipboard only when the number moved while Sidearm was in front.
 - **Embeds want a parent page.** YouTube refuses an embed opened as the top page (no referrer) and Twitch needs `parent=`, so the pop-out loads them inside `ui/pop.html`.
 
 **State and data**
@@ -226,6 +250,9 @@ WebView2 doesn't run on Linux, so the shell itself is only exercised on Windows.
 | Shell logic by reflection | A Mono test that loads `Sidearm.exe`: `TranslateUrl` / `OriginalOf`, `Lang.T` on new strings, settings validation, `VideoEmbedUrl`, `TranslateBatch` with a fake `Lookup.Fetch`, NBU and ER-API parsing with a fake `Rates.Fetch`, the chime WAV, `Clock` | all pass |
 | Filter engine, look-up parsing | Mono harnesses with the real lists and canned API responses | correct block / allow; about 0.5 s to build the engine |
 | The strip, quick bar, start page, settings, page script | Playwright-core with `/opt/pw-browsers/chromium --headless=new`, serving `ui/` from `python3 -m http.server` on 127.0.0.1 (localStorage needs a real origin) with a stub `window.chrome.webview` that records `postMessage` and replays shell messages; run once in English and once with `sidearm.lang = uk` | screenshots look right; zero DOM mutations in `#tabs` over 20 busy `tabs` messages; the recorded messages match the protocol |
+| Raven end to end | `tests/raven.test.mjs` against `wrangler dev --local` (the `server/` folder): two Sidearms pair with a code, compare words, talk both ways, offline delivery, acks, refusals, too-long messages | all pass |
+| Raven's files and settings | `tests/shell/RavenTest.cs` by reflection: the store's save / load / caps / cleaning, call sign and quick-reply cleaning, setting fallbacks, the wing's SVG path | all pass |
+| Raven's window, start-page block, settings, @name, `cb` | `tests/ui/raven-ui-test.js` (en, uk, light): screenshots of every mode, the messages each button sends, and the real engine in the strip page against the local post office (CORS) | no page errors; engine online, invite made |
 | The exe itself | `pefile`: resources 3, 14, 16, 24 present, version strings filled in, `verify_checksum()` true | all true |
 
 Run everything with `tests/run.sh` (add `ui` for the headless screenshots; see `tests/README.md`). The stub is three lines: `window.__sent=[]`, a `postMessage` that pushes into it, and `addEventListener` that keeps listeners so a test can feed `init` / `tabs` / `room` messages. For `inject.js`, replace `/*SIDEARM_CFG*/{}` with a test config before adding it as an init script.
@@ -265,6 +292,37 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 ## Changelog
 
 Newest first. Every version name is in the log's `starting` line, so log entries can be matched to builds. Milestones 1–4 of the original plan map to 0.1, 0.3, 0.4 and 0.5.
+
+### 0.9.0 · Raven — 2026-10-25
+
+*Messages between friends' Sidearms, pages that pop out, and a clipboard with a memory. In Ukrainian the version is called Ворон.*
+
+**Added**
+
+- **Raven** (`raven-core.js`, `RavenStore`, `MainForm.Raven*.cs`, `RavenTabs`, `RavenWindow`, `raven.html`), off by default (Settings → Raven):
+  - each Sidearm makes two P-256 key pairs; the signing key is who you are, and its hash is your inbox on the post office;
+  - adding a friend: an invite code (`SA1…`, 199 characters: both public keys and a one-time token, valid 24 h), a sealed request back, and four words from a bilingual 256-word list that both sides read out loud;
+  - messages are AES-256-GCM with a key from HKDF over ECDH of the two `dh` keys; the post office sees keys, ciphertext and times only;
+  - one WebSocket while Sidearm runs, pushed messages, a ping a minute, reconnect with backoff, a clock that's off fixed from the server's `Date`;
+  - side tabs outside the window (who wrote, with unread counts; the wing for all chats; on the right when Sidearm is against the left screen edge), a chat window beside them, a quick-reply card with ready answers (up to 5, Settings), unread on the start page (pinned friends first), `@name text` in the bar, "Send to a friend" in the right-click menu and on Glance;
+  - your call sign, one of five avatars (only its number travels), what the feature is called (Raven, Courier, Radio, Pigeon, Dispatch), and Delete, which also deletes the inbox;
+  - the last 200 messages per friend in `data\raven\history.json`; the tray tooltip shows the unread count.
+- **Pop out a page** (Alt + Shift + P, shield panel, right-click): the tab's own view moves into a small always-on-top window, so nothing reloads. Its title-bar menu: Back to Sidearm, opacity. Up to 3. The ghost key turns them see-through with Sidearm (holstered: only them). `popsHide` hides pop-outs, videos included, while holstered. One remembered place for all of them (`pageBounds`).
+- **Clipboard history** (`cb`, `clip`, `буфер`, Alt + V; also in the quick bar): the last 10 copies made in Sidearm, text and pictures (at most 3 pictures, kept as PNG), memory only.
+- **Glance buttons** like Zen's: a column of round buttons beside the Glance (close, open here, new tab, your browser, copy link, send to a friend); the Glance leaves room for it.
+- Five avatars in `ui/avatars/` (the clouds are by soikach), shipped as 256 px WebP and 96 px PNG (the originals were a 28 MB PNG and a 2 MB SVG).
+
+**Fixed**
+
+- A page could close its own tab after a long holster or a restart (HoYoLAB's interactive map did, in a tester's log): see the gotcha. Failed page loads now say why (`WebErrorStatus`).
+
+**Server**
+
+- CORS on every response, `OPTIONS` answered (`server/src/index.js`).
+
+**Changed**
+
+- The bar's footer hint is now Alt + V for the clipboard history (Alt + 1 still searches the clipboard).
 
 ### 0.8.2 · Resupply — 2026-10-22
 
@@ -471,8 +529,15 @@ Newest first. Every version name is in the log's `starting` line, so log entries
 - [ ] 0.8: the quick bar's stretch animation looks smooth with a web view inside (it resizes the window ~10 times).
 - [ ] 0.8: Alt relayed from the command bar reaches the page (mouse events keep coming while the bar has focus).
 - [ ] 0.8: the YouTube ad skipper still finds YouTube's player classes.
+- [ ] 0.9: the first update through the Update button (0.8.2 → 0.9.0): "files swapped in", then "Updated from 0.8.2 to 0.9.0".
+- [ ] 0.9: a popped-out page keeps running and painting in its own window (look for "the view got a new window handle").
+- [ ] 0.9: Raven's side tabs stay glued to the window while it moves, and don't take the focus when clicked.
+- [ ] 0.9: Raven reconnects after the PC sleeps; real request counts in Cloudflare's metrics.
+- [ ] 0.9: the HoYoLAB map tab is kept now ("A page asked to close its tab, kept it" in the log).
 
 **Ideas on the table**
+
+- 0.9.1: screenshots (visible part, whole page, an area) with drawing on them (arrows, circles, text) and sending them through Raven; mass download by dragging a box (Alt + drag) over images and file links.
 
 - Code signing (for example SignPath's free open-source plan): the real fix for SmartScreen and scanner guesses.
 - Translate whole sentences in place even when they contain links or bold words (needs an HTML-aware endpoint).

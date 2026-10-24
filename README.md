@@ -30,9 +30,13 @@ You need Windows 10 or 11 with the Microsoft Edge WebView2 Runtime (Windows 11 a
 | **Alt + Space** | Quick bar at the mouse: search, math, `100 usd`, `5 ft in cm`, `timer 5m` |
 | **Alt + G** | Ghost mode: the window is see-through and clicks pass into the game |
 | **Alt + P** | Pop a video out into its own small window over the game |
+| **Alt + Shift + P** | Pop the whole page out (a map keeps its place, nothing reloads) |
 | **Alt + T** | Translate the page |
+| **Alt + V** | What you copied in Sidearm: the last 10 things, text and pictures |
 | **Hold Alt over a word** | Meaning, Wikipedia and translation |
 | **Prefixes** | `w` Wikipedia, `y` YouTube, `t` translator, `a` your AI, `c` Claude… |
+
+**Raven** (0.9, off until you turn it on in Settings): messages and links to your friends' Sidearms. You add a friend with a one-time code and check four words out loud; messages are encrypted on your PC, and Sidearm's small post office on Cloudflare (`server/`) only passes them on. Whoever writes gets a tab with their avatar beside the window; `@name text` in the bar sends a message with the page you're on.
 
 Also: notes and pinned sites on the start page (`n` + text in the bar adds a note), a fix for text typed in the wrong keyboard layout, ad blocking (YouTube ads skipped too), reader view, "clear fog" (overlays and paywall pop-ups), mouse gestures, sound off by default, clean links without trackers, your own color and grain, Ukrainian and English.
 
@@ -53,6 +57,8 @@ The result is in `build/Sidearm/`. Layout:
 | `src/` | The C# WinForms shell around WebView2 (`MainForm.*.cs` split by topic) |
 | `ui/` | Everything you see: HTML, CSS and JavaScript (the strip, start page, settings, quick bar) |
 | `ui/lang/uk.js` | The Ukrainian interface dictionary |
+| `ui/raven-core.js` | Raven's engine: keys, encryption, the connection to the post office |
+| `server/` | The post office: a Cloudflare Worker with one Durable Object per inbox ([server/README.md](server/README.md)) |
 | `assets/` | Icon, manifest, README for the archive |
 | `lib/` | WebView2 SDK 1.0.3856.49 (Microsoft) |
 | `tests/` | Tests that run on Linux: `tests/run.sh` |
@@ -66,6 +72,7 @@ The result is in `build/Sidearm/`. Layout:
 - EasyList, EasyPrivacy and EasyList Cookie filter lists (GPLv3 / CC BY-SA 3.0): downloaded on first start
 - [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home) (GPLv3): only if you pick it in Settings; downloaded from its official GitHub
 - Exchange rates: the National Bank of Ukraine
+- Raven's avatars: four by the Sidearm project, the clouds by **soikach**
 
 ---
 
@@ -101,9 +108,13 @@ The result is in `build/Sidearm/`. Layout:
 | **Alt + Space** | Швидкий рядок біля миші: пошук, обчислення, `100 usd`, `5 ft in cm`, `timer 5m` |
 | **Alt + G** | Режим привида: вікно напівпрозоре, кліки проходять у гру |
 | **Alt + P** | Винести відео в окреме маленьке вікно поверх гри |
+| **Alt + Shift + P** | Винести всю сторінку (мапа лишається на місці, нічого не перезавантажується) |
 | **Alt + T** | Перекласти сторінку |
+| **Alt + V** | Скопійоване в Sidearm: останні 10 речей, текст і картинки |
 | **Затиснути Alt над словом** | Значення, Вікіпедія й переклад |
 | **Префікси** | `w` Вікіпедія, `y` YouTube, `t` перекладач, `a` ваш ШІ, `c` Claude… |
+
+**Ворон** (0.9, вимкнений, доки ви не ввімкнете його в налаштуваннях): повідомлення й посилання в Sidearm ваших друзів. Друга додають одноразовим кодом і звіряють чотири слова вголос; повідомлення шифруються на вашому ПК, а маленька пошта Sidearm на Cloudflare (`server/`) лише передає їх. Хто написав, той отримує вкладку зі своїм аватаром збоку вікна; `@імʼя текст` у рядку надсилає повідомлення разом зі сторінкою, на якій ви зараз.
 
 А ще: нотатки й закріплені сайти на стартовій сторінці (`n` + текст у рядку додає нотатку), виправлення тексту, набраного не в тій розкладці, блокування реклами (і пропуск реклами на YouTube), режим читання, «прибрати туман» (оверлеї й вікна з підписками), жести мишею, вимкнений за замовчуванням звук, чисті посилання без трекерів, власний колір і зернистість, українська й англійська.
 
@@ -124,6 +135,8 @@ Sidearm збирається компілятором Mono під .NET Framework
 | `src/` | Оболонка на C# WinForms навколо WebView2 (`MainForm.*.cs` поділено за темами) |
 | `ui/` | Усе, що видно: HTML, CSS і JavaScript (смужка, стартова сторінка, налаштування, швидкий рядок) |
 | `ui/lang/uk.js` | Український словник інтерфейсу |
+| `ui/raven-core.js` | Рушій Ворона: ключі, шифрування, зʼєднання з поштою |
+| `server/` | Пошта: Cloudflare Worker, по одному Durable Object на скриньку ([server/README.md](server/README.md)) |
 | `assets/` | Іконка, маніфест, README для архіву |
 | `lib/` | WebView2 SDK 1.0.3856.49 (Microsoft) |
 | `tests/` | Тести, що запускаються на Linux: `tests/run.sh` |
@@ -137,3 +150,4 @@ Sidearm збирається компілятором Mono під .NET Framework
 - Списки фільтрів EasyList, EasyPrivacy і EasyList Cookie (GPLv3 / CC BY-SA 3.0): завантажуються при першому запуску
 - [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home) (GPLv3): лише якщо обрати його в налаштуваннях; завантажується з офіційного GitHub
 - Курси валют: Національний банк України
+- Аватари Ворона: чотири від проєкту Sidearm, хмари малювала **soikach**

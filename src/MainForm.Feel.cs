@@ -44,9 +44,12 @@ namespace Sidearm
             catch (Exception) { }
         }
 
-        void SetGhost(bool on)
+        void SetGhost(bool on) { SetGhost(on, true); }
+
+        /// <summary>0.9: pop-outs follow Sidearm into ghost mode and out of it (<paramref name="floats"/>), except on a holster.</summary>
+        void SetGhost(bool on, bool floats)
         {
-            if (on == ghost) return;
+            if (on == ghost) { if (floats) SetFloatsGhost(on); return; }
             if (on && (!Visible || fullscreen)) return;
             try
             {
@@ -67,6 +70,9 @@ namespace Sidearm
                     Opacity = Math.Max(0.3, Math.Min(1, S.opacity));
                     UpdateStyles();
                 }
+                if (floats) SetFloatsGhost(ghost);
+                if (ghost && ravenWin != null) ravenWin.Hide();
+                UpdateRavenTabs(); // the side tabs step aside while you're a ghost
                 if (trayGhost != null) trayGhost.Checked = ghost;
                 PostToUi(new { type = "ghost", on = ghost, key = S.ghostHotkey });
                 Log.Info(ghost ? "Ghost mode on" : "Ghost mode off");
@@ -76,6 +82,7 @@ namespace Sidearm
 
         async void ToggleGhost()
         {
+            if (!Visible && AnyFloatShown()) { ToggleFloatsGhost(); return; } // holstered: just the pop-outs
             if (ghost) { SetGhost(false); Draw(); return; }
             if (!Visible)
             {

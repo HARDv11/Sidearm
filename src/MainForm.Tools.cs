@@ -40,6 +40,7 @@ namespace Sidearm
                 if (quick != null && quick.Visible) { quick.Dismiss(false); return; } // the key again closes it
                 if (Visible && !ghost && IsForegroundOurs()) { FocusBar(true); return; } // Sidearm is up: use its own bar
                 quickSleep.Stop();
+                StartClipWatch();
                 await EnsureQuick();
                 if (quick == null) return;
                 quick.Place(S.quickPosition); // show the window first, then wake its view (see NudgeAfterShow)
@@ -98,6 +99,7 @@ namespace Sidearm
                     case "ready":
                         quick.Post(InitMessage());
                         PushTimers();
+                        if (clips.Items.Count > 0) PushClips();
                         break;
                     case "go":
                         string url = Json.Str(m, "url");
@@ -118,6 +120,9 @@ namespace Sidearm
                         break;
                     case "note":
                         AppendNote(Json.Str(m, "text"), false); // the bar says "Noted" and closes itself
+                        break;
+                    case "clip":
+                        clips.Restore((int)Json.Num(m, "id", 0)); // the bar says "Copied" and closes itself
                         break;
                     case "esc":
                         quick.Dismiss(false);

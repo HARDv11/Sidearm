@@ -168,14 +168,16 @@ namespace Sidearm
 
         static double TicksToMs(long ticks) { return ticks * 1000.0 / Stopwatch.Frequency; }
 
-        void OnPageLoaded(Tab tab, bool ok)
+        void OnPageLoaded(Tab tab, bool ok) { OnPageLoaded(tab, ok, null); }
+
+        void OnPageLoaded(Tab tab, bool ok, string why)
         {
             if (tab.NavStart == 0) return;
             tab.LoadMs = (int)TicksToMs(Stopwatch.GetTimestamp() - tab.NavStart);
             tab.NavStart = 0;
             if (!tab.IsNewTab && IsWebUrl(tab.Url))
                 Log.Info(string.Format("Loaded {0} in {1} ms{2}; filtering {3:0.0} ms over {4} requests", tab.PageHost, tab.LoadMs,
-                    ok ? "" : " (failed)", TicksToMs(tab.FilterTicks), tab.Requests));
+                    ok ? "" : " (failed" + (string.IsNullOrEmpty(why) ? "" : ": " + why) + ")", TicksToMs(tab.FilterTicks), tab.Requests));
         }
 
         // ───────────────────────── a spare tab engine ─────────────────────────

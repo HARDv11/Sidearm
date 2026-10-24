@@ -1,4 +1,4 @@
-SIDEARM 0.8.2 · "Resupply"
+SIDEARM 0.9.0 · "Raven" (Ворон)
 "Switching to your sidearm is faster than opening a browser."
 
 START
@@ -25,6 +25,27 @@ UPDATING
      over your sign-ins, open tabs and settings. Say yes, and you're still signed in everywhere.
   By hand: copy the old "data" folder next to the new Sidearm.exe before its first start.
   Never send your data folder to anyone: it holds your sign-ins.
+
+NEW IN 0.9.0
+  Raven                 messages and links to friends' Sidearms (Settings -> Raven; off until you turn it on).
+                        Add a friend with a code (works once, for 24 hours), then read four words to each other
+                        out loud: the same words mean it's really them. Whoever writes gets a tab with their
+                        avatar beside the window, the wing opens every chat, and a small card offers a quick
+                        reply (ready answers in Settings). In the bar, @name text sends it with the page you're
+                        on (Shift + Enter: text only). Right-click a page or a link -> Send to a friend.
+                        Encrypted on your PC; Sidearm's post office on Cloudflare only passes messages on and
+                        can't read them. Five avatars to pick from (the clouds one is by soikach)
+  Pop out a page        Alt + Shift + P, the shield panel or right-click a page: the page moves into its own
+                        small window over the game, without reloading (a map keeps its place). Right-click its
+                        title -> Back to Sidearm. Alt + G turns pop-outs see-through together with Sidearm.
+                        Settings -> General -> Pop-outs hide with Sidearm (off: they stay up)
+  Clipboard history     Alt + V or cb in the bar: the last 10 things you copied in Sidearm, text and pictures.
+                        Enter copies one again. Kept in memory only, never saved
+  Glance buttons        round buttons beside a Glance: close, open here, new tab, your browser, copy link,
+                        send to a friend
+  Fixed                 a page could close its own tab after a long holster or a restart (HoYoLAB's
+                        interactive map did): only a tab a page opened itself, in that session, may be closed
+                        by the page now. Failed page loads say why in the log
 
 NEW IN 0.8.2
   Fixed                 the Update button didn't work in 0.8.0 and 0.8.1 ("failed to install" every time).
@@ -138,6 +159,8 @@ KEYS
   Alt + M               mute / unmute this tab
   Alt + T               translate this page (again: back to the original)
   Alt + P               pop out this page's video into its own always-on-top window
+  Alt + Shift + P       pop out the whole page (no reload); again in the pop-out: back to Sidearm
+  Alt + V               clipboard history (also: cb in the bar)
   Alt + Space           the quick bar (works even while holstered; change it in Settings -> Quick bar)
   Ctrl + Shift + C      copy the selection as plain text (nothing selected: the page's clean link)
   Ctrl + scroll on the top strip   window opacity
@@ -158,7 +181,18 @@ GLANCE
   Alt + Shift + Enter    open it in a new tab
   Ctrl + Enter           send it to your browser
   Esc, or click the dimmed page   close it
-  The top strip shows GLANCE with Open / Tab / browser / x buttons while one is open.
+  The top strip shows GLANCE with Open / Tab / browser / x buttons while one is open, and round buttons
+  beside it do the same (plus copy link and send to a friend).
+
+RAVEN (Settings -> Raven)
+  Add a friend -> Invite: send the code to your friend (Discord, Telegram, anything). It works once, for
+  24 hours. Add a friend -> I have a code: paste theirs. Both of you then see four words: read them to
+  each other out loud. The same words mean nobody swapped the code on the way.
+  Tabs beside the window show who wrote; the wing tab opens every chat. Against the left edge of the
+  screen they move to the right. A card with a quick reply pops up when a message comes while you're in
+  Sidearm. @name text in the bar sends it; Enter adds the page you're on, Shift + Enter doesn't.
+  Your keys, friends and the last 200 messages with each live in data\raven. Like the rest of data\,
+  never send it to anyone. Settings -> Raven -> Delete removes them and your inbox on the post office.
 
 GESTURES (hold the right mouse button, flick about 40 px, let go)
   <-  back            ->  forward          ^  top of page        v  close Glance, or holster
@@ -209,11 +243,13 @@ FILES
   data\rates.json       exchange rates (refreshed every few hours)
   data\extensions\ublock-lite\  uBlock Origin Lite, if you picked it
   data\extensions\      your imported copy of Modern for Wikipedia
+  data\raven\          Raven: your keys (identity.json), friends and messages. Never share it
   data\sidearm.log      what happened; send me this when something breaks
   data\webview\         browser profile (cookies, cache). Separate from your main browser.
   ui\                   everything you see. ui\sidearm.css is the whole theme (dark + light).
   ui\fonts\             NV Bitter, NV Jost, Sourcerer (eBook Fonts by Nico Verbruggen, OFL)
   ui\vendor\            Mozilla Readability (Apache 2.0)
+  ui\avatars\           Raven's five avatars (four by the Sidearm project, the clouds by soikach)
   source\               the C# source and build script
 
 ADS AND TRACKERS
@@ -243,5 +279,7 @@ KNOWN LIMITS IN THIS BUILD
   The look-up uses free public services (dictionaryapi.dev, Wikipedia, Google Translate);
   the hovered word is sent to them, nothing else.
   Opacity below 100% is experimental; if pages go blank, scroll back to 100%.
+  Raven needs the internet and Sidearm's post office (sidearm-post.hard11.workers.dev). Messages wait
+  there for up to 7 days while a friend is offline. There's no "seen" and no group chat yet.
   Needs the Microsoft Edge WebView2 Runtime (already on Windows 11 and updated
   Windows 10). If it's missing, Sidearm offers the download page.

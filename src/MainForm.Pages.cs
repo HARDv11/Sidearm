@@ -377,6 +377,9 @@ namespace Sidearm
                     await Ublock.Update(ui.CoreWebView2.Profile);
                     SyncUblock();
                     break;
+                case "ravenAdd": OpenRaven(raven.Identity == null ? "list" : "add", null, null); break;
+                case "ravenList": OpenRaven("list", null, null); break;
+                case "ravenDelete": RavenDeleteEverything(); break;
                 case "ublockOpen":
                     if (UblockDashboard != null) Navigate(UblockDashboard, true);
                     break;
@@ -430,7 +433,7 @@ namespace Sidearm
             {
                 t = "settings",
                 s = S,
-                version = Program.Version,
+                version = Program.ShownVersion,
                 autostart = IsAutostart(),
                 filters = UblockOn ? "uBlock Origin Lite is blocking, inside the engine" : Adblock.Status,
                 ublock = Ublock.Status,
@@ -442,6 +445,7 @@ namespace Sidearm
                 browser = BrowserInfo(),
                 dataDir = Program.DataDir,
                 update = UpdateInfo(),
+                raven = new { on = S.raven, online = ravenOnline, ready = RavenReady, title = RavenTitle, friends = raven == null ? 0 : raven.Friends.Count(f => f.status == "friend"), requests = raven == null ? 0 : raven.Friends.Count(f => f.status == "request"), key = raven != null && raven.Identity != null ? Json.Str(raven.Identity, "key") : "" },
                 shortcuts = new { desktop = Shortcuts.State(Shortcuts.DesktopPath), start = Shortcuts.State(Shortcuts.StartMenuPath) },
                 sites = sites
             };
@@ -550,6 +554,17 @@ namespace Sidearm
                     break;
                 case "amnesia":
                     SaveSessionSoon();
+                    break;
+                case "raven":
+                    if (S.raven) { Log.Info(RavenLog("on")); StartRavenIfOn(); } else StopRaven();
+                    RefreshRavenUi();
+                    break;
+                case "callsign": case "avatar":
+                    ProfileChangedSoon();
+                    RefreshRavenUi();
+                    break;
+                case "ravenTabs": case "ravenHome": case "ravenName": case "quickReplies":
+                    RefreshRavenUi();
                     break;
             }
         }

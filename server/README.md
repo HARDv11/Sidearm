@@ -12,6 +12,8 @@ A small Cloudflare Worker that lets two Sidearm copies send each other notes and
 - **Push, cheaply.** While Sidearm runs it keeps one WebSocket to its inbox. New messages are pushed straight away. Cloudflare doesn't bill outgoing messages, and a hibernating socket costs nothing while it's idle. `ping` is answered with `pong` by the runtime without waking the inbox. Drawing and holstering Sidearm doesn't reconnect, so how often someone clicks doesn't change the cost.
 - **Offline.** Messages wait until the owner acks them, for up to 7 days.
 
+**CORS.** Sidearm's pages run on `https://sidearm.example`, so the browser asks first. Every response carries `Access-Control-Allow-Origin: *` (every call is signed anyway) and exposes `Date`, and `OPTIONS` is answered with 204.
+
 ## Endpoints
 
 All under `/v1/inbox/<id>/`, all signed.

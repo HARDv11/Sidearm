@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Web.Script.Serialization;
 
@@ -83,6 +84,16 @@ namespace Sidearm
         public bool snapEdges { get; set; }        // 0.8: a dropped window jumps to a screen edge within 24 px
         public bool youtubeAds { get; set; }       // 0.8: skip YouTube's video ads (Sidearm's own blocker)
         public bool shortcutsOffered { get; set; } // 0.8.1: asked once whether to put Sidearm on the desktop and in Start
+        public bool popsHide { get; set; }         // 0.9: popped-out pages and videos hide while Sidearm is holstered
+        public string pageBounds { get; set; }     // 0.9: where a popped-out page goes: "x,y,w,h" (one place for all of them)
+        public bool raven { get; set; }            // 0.9: Raven, messages to friends' Sidearms (off until you turn it on)
+        public string ravenName { get; set; }      // what the feature is called: raven, courier, radio, pigeon, dispatch
+        public string callsign { get; set; }       // the name your friends see unless they rename you
+        public int avatar { get; set; }            // 0-4: one of the five pictures in uivatars
+        public string ravenHome { get; set; }      // unread on the start page: pinned (pinned friends first, else everyone), all, off
+        public bool ravenTabs { get; set; }        // the side tabs outside the window for whoever wrote
+        public string quickReplies { get; set; }   // up to 5, separated by |; "" = the language's defaults
+        public string ravenServer { get; set; }    // the post office; "" = Sidearm's own (https://sidearm-post.hard11.workers.dev)
         public int defaultsVersion { get; set; }
         public int windowX { get; set; }
         public int windowY { get; set; }
@@ -137,6 +148,8 @@ namespace Sidearm
             currency = "UAH";
             translateMode = "proxy";
             videoBounds = "";
+            popsHide = false; pageBounds = "";
+            raven = false; ravenName = "raven"; callsign = ""; avatar = 0; ravenHome = "pinned"; ravenTabs = true; quickReplies = ""; ravenServer = "";
             preferDark = true;
             updateCheck = true; lastUpdateCheck = ""; snapEdges = true; youtubeAds = true;
             defaultsVersion = 0; // a file that lacks this key predates 0.2 and gets the new prefixes added
@@ -278,6 +291,13 @@ namespace Sidearm
             if (s.currency == null || !System.Text.RegularExpressions.Regex.IsMatch(s.currency, "^[A-Z]{3}$")) s.currency = "UAH";
             if (s.translateMode != "inplace") s.translateMode = "proxy";
             if (s.videoBounds == null) s.videoBounds = "";
+            if (s.pageBounds == null) s.pageBounds = "";
+            if (Array.IndexOf(RavenNames, s.ravenName) < 0) s.ravenName = "raven";
+            s.callsign = CleanCallsign(s.callsign);
+            s.avatar = Math.Max(0, Math.Min(4, s.avatar));
+            if (s.ravenHome != "all" && s.ravenHome != "off") s.ravenHome = "pinned";
+            s.quickReplies = CleanReplies(s.quickReplies);
+            if (s.ravenServer == null) s.ravenServer = "";
             if (s.lastUpdateCheck == null) s.lastUpdateCheck = "";
             if (s.defaultsVersion < 2) AddV2Bangs(s.bangs);
             if (s.defaultsVersion < 3 && s.claudeOpenIn == "tab") s.claudeOpenIn = "app"; // 0.2.0 wrote "tab" by mistake
@@ -287,6 +307,23 @@ namespace Sidearm
             s.IsFirstRun = !existed;
             s.Save(); // writes defaults on first run and adds any new keys after an update
             return s;
+        }
+
+        public static readonly string[] RavenNames = { "raven", "courier", "radio", "pigeon", "dispatch" };
+
+        /// <summary>A call sign: one line, at most 24 characters.</summary>
+        public static string CleanCallsign(string s)
+        {
+            s = System.Text.RegularExpressions.Regex.Replace(s ?? "", @"[\p{C}\s]+", " ").Trim();
+            return s.Length > 24 ? s.Substring(0, 24).Trim() : s;
+        }
+
+        /// <summary>Quick replies: up to 5, each one line of at most 40 characters, separated by |.</summary>
+        public static string CleanReplies(string s)
+        {
+            var list = (s ?? "").Split('|').Select(x => System.Text.RegularExpressions.Regex.Replace(x, @"[\p{C}\s]+", " ").Trim())
+                .Where(x => x.Length > 0).Select(x => x.Length > 40 ? x.Substring(0, 40) : x).Distinct().Take(5);
+            return string.Join("|", list);
         }
 
         public static DateTime LastSelfSave = DateTime.MinValue;
@@ -327,6 +364,11 @@ namespace Sidearm
                 if (name == "blocker" && (string)v != "sidearm" && (string)v != "ublock") return false;
                 if (name == "quickPosition" && (string)v != "mouse" && (string)v != "center" && (string)v != "top") return false;
                 if (name == "translateMode" && (string)v != "proxy" && (string)v != "inplace") return false;
+                if (name == "ravenName" && Array.IndexOf(RavenNames, (string)v) < 0) return false;
+                if (name == "ravenHome" && (string)v != "pinned" && (string)v != "all" && (string)v != "off") return false;
+                if (name == "avatar") v = Math.Max(0, Math.Min(4, (int)v));
+                if (name == "callsign") v = CleanCallsign((string)v);
+                if (name == "quickReplies") v = CleanReplies((string)v);
                 if (name == "currency" && !System.Text.RegularExpressions.Regex.IsMatch((string)v, "^[A-Z]{3}$")) return false;
                 if ((name == "hotkey" || name == "ghostHotkey" || name == "quickHotkey") && ((string)v).Trim().Length == 0) return false;
                 p.SetValue(this, v, null);

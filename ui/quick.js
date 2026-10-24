@@ -12,7 +12,7 @@
 
   var el = { input: $('q'), badge: $('badge'), inline: $('inline'), list: $('list'), foot: $('foot'), qb: $('qb') };
   var cfg = { bangs: {}, searchUrl: 'https://www.google.com/search?q={q}', rates: null, currency: 'UAH' };
-  var items = [], sel = 0, browserName = 'your browser', copiedTimer = 0;
+  var items = [], sel = 0, browserName = 'your browser', copiedTimer = 0, clips = [];
 
   var RECENT_KEY = 'sidearm.recent.v1'; // shared with the main bar (same profile, same origin)
   function recents() { try { var r = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); return Array.isArray(r) ? r : []; } catch (e) { return []; } }
@@ -37,7 +37,17 @@
     var answer = r.kind === 'calc' || r.kind === 'units' || r.kind === 'money' ? '= ' + (r.display || r.copy) : r.kind === 'timer' && !r.cancel ? '⏱ ' + r.display : '';
     el.inline.hidden = !answer;
     el.inline.textContent = answer;
-    if (r.kind === 'empty') {
+    if (r.kind === 'clips') {
+      // 0.9: what you copied in Sidearm (kept in memory only)
+      var f = r.filter.toLowerCase();
+      clips.forEach(function (c) {
+        if (f && (c.kind !== 'text' || c.text.toLowerCase().indexOf(f) < 0)) return;
+        var line = c.kind === 'text' ? c.text.replace(/\s+/g, ' ').trim() : '';
+        items.push(c.kind === 'text' ? { type: 'clip', tag: 'Clip', label: line.length > 90 ? line.slice(0, 89) + '\u2026' : line, sub: c.at, id: c.id }
+          : { type: 'clip', tag: 'Clip', thumb: c.thumb, label: T('Picture') + ' ' + c.w + '\u00d7' + c.h, sub: c.at, id: c.id });
+      });
+      if (!items.length) items.push({ type: 'info', tag: 'Clip', label: f ? 'Nothing copied matches that' : 'Nothing copied yet', sub: 'Kept in memory only' });
+    } else if (r.kind === 'empty') {
       recents().slice(0, 5).forEach(function (q) { items.push({ type: 'recent', text: q }); });
     } else {
       if (r.kind === 'calc') items.push({ type: 'copy', tag: 'Calc', label: '= ' + r.display, sub: t, copy: r.copy });
@@ -69,15 +79,17 @@
     items.forEach(function (it, i) {
       var on = i === sel && (moved || it.type !== 'recent');
       var row = node('div', 'row ' + it.type + (on ? ' sel' : ''));
-      row.appendChild(node('span', 'k', it.type === 'recent' ? '↺' : it.tag));
+      var k = node('span', 'k', it.type === 'recent' ? '↺' : it.thumb ? '' : it.tag);
+      if (it.thumb) { var im = document.createElement('img'); im.alt = ''; im.src = it.thumb; k.appendChild(im); k.classList.add('thumb'); }
+      row.appendChild(k);
       var m = node('span', 'm');
       m.appendChild(node('span', 'l', it.type === 'recent' ? it.text : it.label));
       if (it.sub) m.appendChild(node('span', 's', it.sub));
       row.appendChild(m);
       var hint = node('span', 'hint');
-      if (on) {
+      if (on && it.type !== 'info') {
         hint.appendChild(kbd('Enter'));
-        hint.appendChild(document.createTextNode(' ' + T(it.type === 'copy' ? 'copy' : it.type === 'timer' ? (it.cancel ? 'stop' : 'start') : it.type === 'bang' ? 'pick' : it.type === 'note' ? 'save' : it.type === 'fix' ? 'use' : 'open')));
+        hint.appendChild(document.createTextNode(' ' + T(it.type === 'copy' || it.type === 'clip' ? 'copy' : it.type === 'timer' ? (it.cancel ? 'stop' : 'start') : it.type === 'bang' ? 'pick' : it.type === 'note' ? 'save' : it.type === 'fix' ? 'use' : 'open')));
       }
       row.appendChild(hint);
       row.addEventListener('mousedown', function (e) { e.preventDefault(); });
@@ -104,6 +116,15 @@
       el.inline.textContent = T('Copied');
       clearTimeout(copiedTimer);
       copiedTimer = setTimeout(function () { send({ op: 'esc' }); }, 450);
+      return;
+    }
+    if (it.type === 'info') return;
+    if (it.type === 'clip') {
+      send({ op: 'clip', id: it.id });
+      el.inline.hidden = false;
+      el.inline.textContent = T('Copied');
+      clearTimeout(copiedTimer);
+      copiedTimer = setTimeout(function () { reset(); send({ op: 'esc' }); }, 450);
       return;
     }
     if (it.type === 'timer') {
@@ -188,6 +209,7 @@
       if (window.SidearmLook) SidearmLook.apply(m.look || {}, m.theme || 'dark');
       build();
     } else if (m.type === 'rates') { cfg.rates = m.rates || null; build(); }
+    else if (m.type === 'clips') { clips = m.list || []; if (Q.resolve(el.input.value, cfg).kind === 'clips') build(); }
     else if (m.type === 'show') {
       moved = false;
       el.input.value = '';

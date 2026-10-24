@@ -114,6 +114,10 @@ namespace Sidearm
                 DropQuick();
                 DropSpare();
                 if (video != null && !video.IsDisposed) video.Close();
+                ClosePops();
+                FlushRaven();
+                if (ravenWin != null) { ravenWin.Dispose(); ravenWin = null; }
+                if (ravenTabs != null) { ravenTabs.Dispose(); ravenTabs = null; }
                 if (tabsView != null) { tabsView.Dispose(); tabsView = null; }
                 if (ui != null) { ui.Dispose(); ui = null; }
             }

@@ -15,6 +15,34 @@ namespace Sidearm
     {
         Tab glance;
         Panel glanceHost;
+        GlanceRail glanceRail;
+
+        /// <summary>0.9: the round buttons beside the Glance, Zen style.</summary>
+        void ShowGlanceRail()
+        {
+            if (glanceRail == null)
+            {
+                glanceRail = new GlanceRail { Visible = false };
+                glanceRail.Command += op => OnGlanceCommand(op);
+                Controls.Add(glanceRail);
+            }
+            var list = new List<GlanceRail.Button>
+            {
+                new GlanceRail.Button { Op = "close", Tip = "Close (Esc or click outside)", Icon = GlanceRail.IconClose },
+                new GlanceRail.Button { Op = "promote", Tip = "Open here, in this tab (Alt+Enter)", Icon = GlanceRail.IconExpand },
+                new GlanceRail.Button { Op = "newtab", Tip = "Open in a new tab (Alt+Shift+Enter)", Icon = GlanceRail.IconNewTab },
+                new GlanceRail.Button { Op = "zen", Tip = "Open in " + BrowserName + " (Ctrl+Enter)", Icon = GlanceRail.IconOut },
+                new GlanceRail.Button { Op = "copy", Tip = "Copy link", Icon = GlanceRail.IconLink }
+            };
+            if (RavenReady) list.Add(new GlanceRail.Button { Op = "friend", Tip = "Send to a friend", Icon = GlanceRail.IconWing });
+            glanceRail.SetButtons(list);
+            glanceRail.Back = IsLight ? Color.FromArgb(0xFA, 0xF9, 0xF5) : Color.FromArgb(0x17, 0x1B, 0x1D);
+            glanceRail.Line = FrameLine;
+            glanceRail.Ink = IsLight ? Color.FromArgb(0x3F, 0x45, 0x3F) : Color.FromArgb(0xC9, 0xCC, 0xC5);
+            glanceRail.Accent = AccentColor;
+            glanceRail.Visible = true;
+            LayoutChildren();
+        }
 
         // ───────────────────────── Glance ─────────────────────────
 
@@ -36,7 +64,7 @@ namespace Sidearm
                 }
                 glance = new Tab { Id = -1, Url = url, Title = url, IsGlance = true };
                 glanceHost.Visible = true;
-                LayoutChildren();
+                ShowGlanceRail();
                 if (active != null) PostToContent(active, new { t = "dim", on = true });
                 PushTabs();
                 await EnsureView(glance, true);
@@ -57,6 +85,7 @@ namespace Sidearm
             g.Closed = true;
             DisposeView(g); // the engine is destroyed, not kept around
             if (glanceHost != null) glanceHost.Visible = false;
+            if (glanceRail != null) glanceRail.Visible = false;
             if (active != null)
             {
                 PostToContent(active, new { t = "dim", on = false });
@@ -75,6 +104,8 @@ namespace Sidearm
                 case "newtab": CloseGlance(); Navigate(url, true); break;
                 case "zen": SendToBrowser(url, false); break;
                 case "zenPrivate": SendToBrowser(url, true); break;
+                case "copy": CopyLink(url); break;
+                case "friend": SendToFriend(url, glance.Title); break;
                 default: CloseGlance(); break;
             }
         }
@@ -88,8 +119,11 @@ namespace Sidearm
         Rectangle GlanceBounds(Rectangle contentBounds)
         {
             int mx = Math.Max(ToPx(14), contentBounds.Width / 20), my = ToPx(10);
+            // 0.9: the right margin holds the button column
+            int right = mx;
+            if (glanceRail != null && glanceRail.Visible) right = Math.Max(mx, glanceRail.Want(Native.Scale(Handle)).Width + 2 * ToPx(8));
             return new Rectangle(contentBounds.X + mx, contentBounds.Y + my,
-                Math.Max(0, contentBounds.Width - 2 * mx), Math.Max(0, contentBounds.Height - 2 * my));
+                Math.Max(0, contentBounds.Width - mx - right), Math.Max(0, contentBounds.Height - 2 * my));
         }
 
         // ───────────────────────── image viewer: the parts a page can't do ─────────────────────────

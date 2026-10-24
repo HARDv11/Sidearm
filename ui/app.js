@@ -21,7 +21,7 @@
     tabs: [], canBack: false, canForward: false, canReopen: false, zoom: 100, page: { web: false }, panel: false,
     glance: null, browserName: 'Zen', aiName: 'Claude', ghost: false, ghostKey: 'Alt+G',
     pinned: false, hotkey: 'Alt+`', tagline: '',
-    focusValue: '', open: false, items: [], sel: 0, moved: false
+    focusValue: '', open: false, items: [], sel: 0, moved: false, clips: [], friends: [], friendSel: 0
   };
 
   // ───────────── recent searches (this PC only) ─────────────
@@ -400,6 +400,10 @@
       });
     } else if (bare) {
       items.push({ type: 'bang', tag: bare.key, label: bare.name, sub: 'type your search', key: bare.key });
+    } else if (r.kind === 'clips') {
+      clipItems(r.filter).forEach(function (c) { items.push(c); });
+    } else if (r.kind === 'friend') {
+      friendItems(r).forEach(function (c) { items.push(c); });
     } else if (r.kind === 'empty' || unchanged) {
       if (unchanged && state.pageUrl) items.push({ type: 'go', tag: 'Go', label: hostOf(state.pageUrl) || text, sub: 'Reload this address', url: state.pageUrl, text: text });
       loadRecents().slice(0, 8).forEach(function (q) { items.push({ type: 'recent', text: q }); });
@@ -432,6 +436,43 @@
     state.moved = false;
   }
 
+  // 0.9: Raven from the bar. "@оля" lists the friends that match; "@оля глянь" offers to send, with the page or without
+  function friendMatches(who) {
+    var w = (who || '').toLowerCase();
+    return (state.friends || []).filter(function (f) { return !w || f.name.toLowerCase().indexOf(w) === 0; })
+      .concat((state.friends || []).filter(function (f) { return w && f.name.toLowerCase().indexOf(w) > 0; }));
+  }
+  function friendItems(r) {
+    var list = friendMatches(r.who), out = [];
+    if (!state.friends.length) return [{ type: 'info', tag: '@', label: 'No friends in Raven yet', sub: 'Settings → Raven: turn it on and add a friend' }];
+    if (!list.length) return [{ type: 'info', tag: '@', label: 'No friend called that', sub: 'Tab goes through your friends' }];
+    if (!r.text) {
+      list.slice(0, 6).forEach(function (f) { out.push({ type: 'friendPick', thumb: 'avatars/' + f.av + '.webp', label: f.name, sub: TT('then your message'), name: f.name }); });
+      return out;
+    }
+    var f = list[(state.friendSel || 0) % list.length], t = activeTab();
+    var page = t && t.url && /^https?:/i.test(t.url) ? t : null;
+    if (page) out.push({ type: 'friend', thumb: 'avatars/' + f.av + '.webp', label: f.name + ' \u00b7 ' + TT('with this page'), sub: '\u201C' + r.text + '\u201D + ' + hostOf(page.url), key: f.key, text: r.text, withPage: true });
+    out.push({ type: 'friend', thumb: 'avatars/' + f.av + '.webp', label: f.name + ' \u00b7 ' + TT('text only'), sub: '\u201C' + r.text + '\u201D', key: f.key, text: r.text, withPage: false });
+    if (list.length > 1) out.push({ type: 'info', tag: 'Tab', label: TT('Another friend'), sub: list.filter(function (x) { return x !== f; }).slice(0, 3).map(function (x) { return x.name; }).join(', ') });
+    return out;
+  }
+
+  // 0.9: what you copied inside Sidearm, newest first (the shell keeps it in memory only)
+  function clipItems(filter) {
+    var f = (filter || '').toLowerCase(), out = [];
+    (state.clips || []).forEach(function (c) {
+      if (f && (c.kind !== 'text' || c.text.toLowerCase().indexOf(f) < 0)) return;
+      var line = c.kind === 'text' ? c.text.replace(/\s+/g, ' ').trim() : '';
+      out.push(c.kind === 'text'
+        ? { type: 'clip', tag: 'Clip', label: line.length > 140 ? line.slice(0, 139) + '\u2026' : line, sub: c.at + (c.chars > 140 ? ' \u00b7 ' + c.chars + ' ' + TT('characters') : ''), id: c.id }
+        : { type: 'clip', tag: 'Clip', thumb: c.thumb, label: TT('Picture') + ' ' + c.w + '\u00d7' + c.h, sub: c.at, id: c.id });
+    });
+    if (!out.length) out.push({ type: 'info', tag: 'Clip', label: f ? 'Nothing copied matches that' : 'Nothing copied yet',
+      sub: 'What you copy in Sidearm shows up here, text and pictures. Kept in memory only, never saved' });
+    return out;
+  }
+
   function openPalette() {
     closePanel();
     state.open = true;
@@ -455,7 +496,8 @@
       if (i > 0 && it.type === 'bang' && items[i - 1].type !== 'bang') p.appendChild(node('div', 'sec', 'Prefixes'));
       var selected = i === state.sel && (state.moved || it.type !== 'recent');
       var row = node('div', 'row ' + it.type + (selected ? ' sel' : ''));
-      var tag = node('span', 'k', it.type === 'recent' ? '↺' : it.tag);
+      var tag = node('span', 'k', it.type === 'recent' ? '↺' : it.thumb ? '' : it.tag);
+      if (it.thumb) { var im = document.createElement('img'); im.alt = ''; im.src = it.thumb; tag.appendChild(im); tag.classList.add('thumb'); }
       row.appendChild(tag);
       var main = node('span', 'm');
       main.appendChild(node('span', 'l', it.type === 'recent' ? it.text : it.label));
@@ -463,7 +505,10 @@
       row.appendChild(main);
       var hint = node('span', 'hint');
       if (selected) {
-        if (it.type === 'copy') { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(' copy')); }
+        if (it.type === 'copy' || it.type === 'clip') { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(' copy')); }
+        else if (it.type === 'friend') { hint.appendChild(kbd(it.withPage ? 'Enter' : 'Shift+Enter')); hint.appendChild(document.createTextNode(' send')); }
+        else if (it.type === 'friendPick') { hint.appendChild(kbd('Tab')); }
+        else if (it.type === 'info') { }
         else if (it.type === 'bang') { hint.appendChild(kbd('Tab')); }
         else if (it.type === 'timer') { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(it.cancel ? ' stop' : ' start')); }
         else if (it.type === 'note') { hint.appendChild(kbd('Enter')); hint.appendChild(document.createTextNode(' save')); }
@@ -487,9 +532,15 @@
     var left = node('span');
     left.appendChild(kbd('↑↓')); left.appendChild(document.createTextNode(' pick  '));
     left.appendChild(kbd('Esc')); left.appendChild(document.createTextNode(' holster  '));
-    left.appendChild(kbd('Alt+1')); left.appendChild(document.createTextNode(' clipboard'));
+    left.appendChild(kbd('Alt+V')); left.appendChild(document.createTextNode(' copied'));
     foot.appendChild(left);
-    if (loadRecents().length) {
+    if (items.some(function (x) { return x.type === 'clip'; })) {
+      var clr = node('button', 'link', 'Clear history');
+      clr.title = 'Forget everything copied this session';
+      clr.addEventListener('mousedown', function (e) { e.preventDefault(); });
+      clr.addEventListener('click', function () { send({ type: 'clip', op: 'clear' }); });
+      foot.appendChild(clr);
+    } else if (loadRecents().length) {
       var clear = node('button', 'link', 'Clear recent');
       clear.addEventListener('mousedown', function (e) { e.preventDefault(); });
       clear.addEventListener('click', function () { saveRecents([]); update(true); });
@@ -521,6 +572,23 @@
     }
     if (it.type === 'timer') { startTimer(it); return; }
     if (it.type === 'note') { addNote(it.text); return; }
+    if (it.type === 'info') return;
+    if (it.type === 'friendPick') { el.input.value = '@' + it.name.split(/\s/)[0] + ' '; el.input.focus(); update(true); return; }
+    if (it.type === 'friend') {
+      send({ type: 'ravenSend', key: it.key, text: it.text, withPage: !!it.withPage });
+      closePalette();
+      el.input.value = '';
+      el.input.blur();
+      return;
+    }
+    if (it.type === 'clip') {
+      send({ type: 'clip', op: 'restore', id: it.id });
+      closePalette();
+      el.input.value = '';
+      el.input.blur();
+      send({ type: 'focusContent' }); // back to the page, ready for Ctrl + V
+      return;
+    }
     if (it.type === 'fix') { el.input.value = it.text; run(it.text, newTab); return; }
     if (it.type === 'go') go(it.url, it.text, newTab);
   }
@@ -542,6 +610,14 @@
     if (r.kind === 'empty') return;
     if (r.kind === 'timer') { startTimer(r.cancel ? { cancel: true } : { seconds: r.seconds, name: r.label }); return; }
     if (r.kind === 'note') { addNote(r.text); return; }
+    if (r.kind === 'clips') { runItem(state.items[state.open && state.moved ? state.sel : 0]); return; }
+    if (r.kind === 'friend') {
+      // Enter: with the page if there is one; Shift + Enter: the text only
+      var fi = state.items.filter(function (x) { return x.type === 'friend'; }), pick = state.items.filter(function (x) { return x.type === 'friendPick'; })[0];
+      if (fi.length) runItem(newTab ? fi[fi.length - 1] : fi[0]);
+      else if (pick) runItem(pick);
+      return;
+    }
     if (r.kind === 'calc' || r.kind === 'units' || r.kind === 'money') {
       el.input.value = text;
       update(true);
@@ -585,7 +661,7 @@
       el.input.value = shown(t && t.url ? t.url : '');
     }, 0);
   });
-  el.input.addEventListener('input', function () { update(true); });
+  el.input.addEventListener('input', function () { state.friendSel = 0; update(true); });
   el.input.addEventListener('copy', function (e) {
     var v = el.input.value, a = el.input.selectionStart, b = el.input.selectionEnd;
     if (a !== 0 || b !== v.length || !/^https?:\/\//i.test(v)) return;
@@ -600,6 +676,14 @@
       case 'Tab':
         e.preventDefault();
         var it = state.items[state.sel];
+        var rk = Q.resolve(el.input.value, state.cfg);
+        if (rk.kind === 'friend') {
+          var pk = state.items.filter(function (x) { return x.type === 'friendPick'; })[state.open && state.moved ? 0 : 0];
+          if (it && it.type === 'friendPick') runItem(it);
+          else if (!rk.text && pk) runItem(pk);
+          else { state.friendSel = (state.friendSel || 0) + (e.shiftKey ? -1 + friendMatches(rk.who).length : 1); update(true); }
+          break;
+        }
         if (it && it.type === 'bang') runItem(it);
         else if (it && it.type === 'recent') { el.input.value = it.text; update(true); }
         else moveSel(e.shiftKey ? -1 : 1);
@@ -723,6 +807,8 @@
     }
     if (p.video) box.appendChild(prow('i-pop', 'Pop out video', 'Its own small window that stays up while you play  ·  Alt+P',
       pbtn('Pop out', function () { closePanel(); send({ type: 'page', op: 'popout' }); })));
+    box.appendChild(prow('i-pop', 'Pop out page', 'Its own small window over the game, nothing reloads  ·  Alt+Shift+P',
+      pbtn('Pop out', function () { closePanel(); send({ type: 'page', op: 'popPage' }); })));
     box.appendChild(prow('i-book', 'Reader view', 'Just the article  ·  Alt+R',
       pbtn('Open', function () { send({ type: 'page', op: 'reader' }); closePanel(); })));
     box.appendChild(prow('i-fog', 'Clear fog', 'Overlays, blur, scroll locks  ·  Alt+F',
@@ -984,6 +1070,21 @@
         state.clockSkew = (m.now || Date.now()) - Date.now();
         renderTimers();
         break;
+      case 'raven-friends':
+        state.friends = m.list || [];
+        break;
+      case 'clips':
+        state.clips = m.list || [];
+        if (state.open && Q.resolve(el.input.value, state.cfg).kind === 'clips') update(true);
+        break;
+      case 'prefill':
+        // Alt + V: the bar opens on a command, its list showing
+        el.input.focus();
+        el.input.value = m.text || '';
+        state.focusValue = '';
+        state.search = null;
+        update(true);
+        break;
       case 'rates':
         state.cfg.rates = m.rates || null;
         if (document.activeElement === el.input) update(false);
@@ -1015,7 +1116,38 @@
     window.addEventListener('blur', altUp);
   }
 
-  if (bridge) bridge.addEventListener('message', function (e) { onMessage(e.data); });
+  // ───────────── Raven: the engine runs here, the shell keeps the files and draws the windows (0.9) ─────────────
+
+  var raven = null;
+  function ravenEmit(e) { e.type = 'raven'; send(e); }
+  function ravenReply(req, p) {
+    p.then(function (v) { send({ type: 'raven', op: 'result', req: req, ok: true, value: v || {} }); },
+      function (err) { send({ type: 'raven', op: 'result', req: req, ok: false, error: (err && err.message) || String(err) }); });
+  }
+  function onRaven(m) {
+    if (TABS_ONLY || !window.SidearmRaven) return;
+    if (m.op === 'start') {
+      if (raven) raven.stop();
+      raven = SidearmRaven.create({ server: m.server, emit: ravenEmit });
+      raven.start(m.identity || null, m.friends || []).catch(function (e) { ravenEmit({ op: 'log', text: 'start failed: ' + e.message }); });
+      return;
+    }
+    if (m.op === 'stop') { if (raven) raven.stop(); raven = null; return; }
+    if (!raven) { if (m.req) send({ type: 'raven', op: 'result', req: m.req, ok: false, error: 'Raven is off' }); return; }
+    switch (m.op) {
+      case 'friends': ravenReply(m.req, raven.setFriends(m.friends || [], m.push !== false)); break;
+      case 'invite': ravenReply(m.req, raven.invite()); break;
+      case 'readCode': ravenReply(m.req, raven.readCode(m.code)); break;
+      case 'request': ravenReply(m.req, raven.request(m.code, m.profile || {})); break;
+      case 'send': ravenReply(m.req, raven.send(m.to, m.body || {}, m.id)); break;
+      case 'delete': ravenReply(m.req, raven.deleteInbox()); break;
+    }
+  }
+  // the network came back, or the PC woke up: reconnect now instead of waiting for the backoff
+  window.addEventListener('online', function () { if (raven) raven.kick(); });
+  document.addEventListener('visibilitychange', function () { if (raven && !document.hidden) raven.kick(); });
+
+  if (bridge) bridge.addEventListener('message', function (e) { if (e.data && e.data.type === 'raven') onRaven(e.data); else onMessage(e.data); });
   window.__sidearm = { onMessage: onMessage, state: state }; // handy for testing in a normal browser
 
   restoreTicker();

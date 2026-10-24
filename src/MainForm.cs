@@ -77,6 +77,8 @@ namespace Sidearm
             InitQuickSleep();
             InitPaintCheck();
             InitTimers();
+            InitClips();
+            InitRaven();
 
             try { injectJs = File.ReadAllText(Path.Combine(Program.UiDir, "inject.js")); }
             catch (Exception ex) { Log.Error("Could not read ui\\inject.js", ex); }
@@ -260,6 +262,7 @@ namespace Sidearm
                 bool first = initTask == null;
                 bool wasHidden = !Visible;
                 RememberGameWindow();
+                StartClipWatch();
                 // Show the window first, then wake the views: a view made visible inside a hidden window
                 // may not repaint until something forces a layout (the blank strip of 0.7)
                 if (!Visible)
@@ -268,6 +271,7 @@ namespace Sidearm
                     Show();
                 }
                 if (!first && wasHidden) await WakeAsync();
+                if (wasHidden) ShowFloatsWithSidearm();
                 RegisterGhostHotkey(true);
                 Native.ForceForeground(Handle);
                 Activate();
@@ -277,6 +281,7 @@ namespace Sidearm
                 NudgeAfterShow();
                 FocusBar(true);
                 PostToUi(new { type = "drawn" });
+                UpdateRavenTabs();
                 PrepareSpareSoon();
                 UpdateMemory();
                 memTimer.Start();
@@ -295,12 +300,14 @@ namespace Sidearm
         public void Holster()
         {
             if (!Visible) return;
-            if (ghost) SetGhost(false);
-            RegisterGhostHotkey(false);
+            if (ghost) SetGhost(false, false);
+            HideFloatsWithSidearm();
+            RegisterGhostHotkey(AnyFloatShown()); // 0.9: the ghost key stays for the pop-outs while they're up
             deactivateTimer.Stop();
             SaveBounds();
             PostToUi(new { type = "holstered" });
             CancelLookup();
+            HideRavenWindows();
             Hide();
             memTimer.Stop();
             sleepTimer.Interval = Math.Max(1, S.suspendAfterHideSeconds) * 1000;
@@ -310,7 +317,7 @@ namespace Sidearm
                 unloadTimer.Interval = Math.Min(int.MaxValue / 2, S.unloadAfterHideMinutes * 60000);
                 unloadTimer.Start();
             }
-            if (S.amnesia) AmnesiaWipe();
+            if (S.amnesia) { AmnesiaWipe(); clips.Clear(); }
         }
 
         bool IsForegroundOurs()
@@ -360,10 +367,11 @@ namespace Sidearm
             DropSpare(); // the spare engine only earns its memory while you're using Sidearm
             int count = 0;
             var views = new List<WebView2>();
-            if (ui != null) views.Add(ui);
+            if (ui != null && !S.raven) views.Add(ui); // 0.9: with Raven on, the strip stays awake (it holds the connection)
             if (tabsView != null) views.Add(tabsView);
             if (glance != null && glance.View != null) views.Add(glance.View);
             foreach (var t in tabs) if (t.View != null) views.Add(t.View);
+            foreach (var f in Floats()) if (!f.Visible && f.View != null) views.Add(f.View); // hidden with Sidearm (Settings)
             foreach (var v in views)
             {
                 if (Visible) return;
@@ -423,6 +431,7 @@ namespace Sidearm
             int n = 0;
             foreach (var t in tabs) if (t.View != null) { DisposeView(t); n++; }
             if (quick != null && !quick.Visible) DropQuick(); // it's rebuilt the next time you call it up
+            DropRavenWindow();
             unloaded = true;
             Log.Info("Long holster: unloaded " + n + " tab views");
             GC.Collect();
@@ -527,12 +536,14 @@ namespace Sidearm
             bool shift = (mods & Keys.Shift) != 0;
 
             if (alt && !ctrl && (key == Keys.D1 || key == Keys.NumPad1)) { CancelLookup(); ClipboardSearch(); return true; }
+            if (alt && !ctrl && !shift && key == Keys.V) { CancelLookup(); ShowClips(); return true; }
             if (alt && !ctrl && key == Keys.R) { CancelLookup(); ToggleReader(active); return true; }
             if (alt && !ctrl && key == Keys.F) { CancelLookup(); ClearFog(active); return true; }
             if (alt && !ctrl && key == Keys.D) { CancelLookup(); FocusBar(true); return true; }
             if (alt && !ctrl && key == Keys.Home) { CancelLookup(); GoHome(); return true; }
             if (alt && !ctrl && key == Keys.M) { CancelLookup(); ToggleMute(); return true; }
             if (alt && !ctrl && key == Keys.T) { CancelLookup(); ToggleTranslate(active); return true; }
+            if (alt && shift && !ctrl && key == Keys.P) { CancelLookup(); PopOutPage(active); return true; }
             if (alt && !ctrl && key == Keys.P) { CancelLookup(); PopOutVideo(glance ?? active); return true; }
             if (ctrl && shift && !alt && key == Keys.C && !fromBar) { QuickCopy(); return true; }
             if (alt && !ctrl && key == Keys.Enter && glance != null) { CancelLookup(); OnGlanceCommand(shift ? "newtab" : "promote"); return true; }
@@ -590,6 +601,8 @@ namespace Sidearm
                         SendInit();
                         PushTabs();
                         if (timers.Count > 0) PushTimers();
+                        if (clips.Items.Count > 0) PushClips();
+                        StartRavenIfOn(); // the engine lives in the strip: a reloaded strip starts it again
                         foreach (var q in uiQueue) ui.CoreWebView2.PostWebMessageAsJson(q);
                         uiQueue.Clear();
                         if (Visible) { FocusBar(true); UpdateMemory(); }
@@ -633,6 +646,7 @@ namespace Sidearm
                         else if (pop == "fog") ClearFog(active);
                         else if (pop == "translate") ToggleTranslate(active);
                         else if (pop == "popout") PopOutVideo(active);
+                        else if (pop == "popPage") PopOutPage(active);
                         else if (pop == "ublock") { if (UblockDashboard != null) Navigate(UblockDashboard, true); }
                         else SetSiteOption(pop, Json.Bool(m, "on"));
                         break;
@@ -681,6 +695,15 @@ namespace Sidearm
                         if (Json.Bool(m, "clean")) CopyLink(text);
                         else if (!string.IsNullOrEmpty(text)) try { Clipboard.SetText(text); } catch (Exception) { }
                         break;
+                    case "clip":
+                        OnClipMessage(m);
+                        break;
+                    case "raven":
+                        if (!IsTabsViewSender(sender)) OnRavenEvent(m);
+                        break;
+                    case "ravenSend":
+                        if (RavenReady) RavenFromBar(Json.Str(m, "key"), Json.Str(m, "text"), Json.Bool(m, "withPage"));
+                        break;
                     case "clipSearch":
                         ClipboardSearch();
                         break;
@@ -697,6 +720,7 @@ namespace Sidearm
                         else if (name == "popout") PopOutVideo(glance ?? active);
                         else if (name == "update") UpdateNow();
                         else if (name == "shortcuts") MakeShortcuts();
+                        else if (name == "ravenRequests") OpenRaven("list", null, null);
                         else if (name == "lookupOn" && active != null) { SetSiteOption("lookup", true); Toast("Word look-up is on again for this site", null, null); }
                         break;
                     case "log":
@@ -714,7 +738,7 @@ namespace Sidearm
             return new
             {
                 type = "init",
-                version = Program.Version,
+                version = Program.ShownVersion,
                 tagline = Program.Tagline,
                 hotkey = S.hotkey,
                 hotkeyOk = hotkeyOk,
@@ -832,6 +856,13 @@ namespace Sidearm
             {
                 glanceHost.Bounds = GlanceBounds(content.Bounds);
                 glanceHost.BringToFront();
+                if (glanceRail != null && glanceRail.Visible)
+                {
+                    var want = glanceRail.Want(Native.Scale(Handle));
+                    int gx = glanceHost.Right + (content.Bounds.Right - glanceHost.Right - want.Width) / 2;
+                    glanceRail.Bounds = new Rectangle(gx, glanceHost.Top, want.Width, Math.Min(want.Height, glanceHost.Height));
+                    glanceRail.BringToFront();
+                }
             }
             if (ui != null)
             {
@@ -846,6 +877,13 @@ namespace Sidearm
         {
             base.OnResize(e);
             LayoutChildren();
+            PositionRaven();
+        }
+
+        protected override void OnLocationChanged(EventArgs e)
+        {
+            base.OnLocationChanged(e);
+            PositionRaven(); // Raven's side tabs and chat move with the window
         }
 
         protected override void OnPaint(PaintEventArgs e)
@@ -1076,6 +1114,10 @@ namespace Sidearm
                 if (tray != null) { tray.Visible = false; tray.Dispose(); }
                 foreach (var t in tabs) if (t.View != null) t.View.Dispose();
                 if (video != null && !video.IsDisposed) video.Close();
+                ClosePops();
+                FlushRaven();
+                if (ravenTabs != null) ravenTabs.Dispose();
+                if (ravenWin != null) ravenWin.Dispose();
                 DropQuick();
                 if (ui != null) ui.Dispose();
             }

@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="sidearm.css">
 </head>
 <body class="newtab">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="rvh-wing" viewBox="0 0 49 52"><path fill="currentColor" d="M19.9767 50.9765C30.1062 51.7595 43.0724 46.3271 48.0343 26.689C37.8531 23.9082 12.6427 12.0489 0.270828 0C-0.0203096 2.40424 -0.0492685 4.48545 0.0552561 6.22643C0.315037 10.5534 3.00547 14.1405 6.54663 16.6405C11.2753 19.9788 18.945 24.757 28.4015 28.3571C11.6717 24.1886 9.99749 23.6146 2.27084 18.9995C2.27084 19.4432 2.28943 19.88 2.32342 20.3077C2.76514 25.8675 7.18006 30.0705 12.4631 31.8582C17.657 33.6158 23.5875 34.8544 27.6436 35.4756C19.7708 37.4995 10.8353 34.644 6.83533 34.144C6.93729 34.6847 7.061 35.1997 7.20135 35.6891C8.67099 40.8134 14.173 43.1603 19.5037 43.1984C22.7664 43.2218 26.217 42.8508 30.2707 41.4996C23.7708 46.9994 17.7305 46.3334 13.2708 45.9994C13.8242 49.0819 16.8543 50.7352 19.9767 50.9765Z"/></symbol></svg>
 <main class="nt">
   <section class="nt-hero">
     <svg class="scope" viewBox="0 0 100 100" aria-hidden="true">
@@ -25,6 +26,7 @@
 
   <section class="nt-dock" id="dock" hidden>
     <div class="pins" id="pins" aria-label="Pinned sites"></div>
+    <section class="rvh" id="rvh" hidden aria-label="Raven"></section>
     <div class="notes">
       <div class="notes-head">
         <h2>Notes</h2>
@@ -160,6 +162,48 @@
       reveal();
     }
   });
+  // 0.9: Raven's unread messages, above the notes (pinned friends first; Settings → Raven)
+  var rvh = document.getElementById('rvh');
+  function avatar(n, size) {
+    var w = el('span', 'rv-av'); w.style.width = w.style.height = size + 'px';
+    var img = new Image(); img.alt = ''; img.src = 'avatars/' + (n >= 0 && n <= 4 ? n : 0) + '.webp';
+    var big = Math.round(size / 0.68); img.style.width = img.style.height = big + 'px'; img.style.left = img.style.top = Math.round((size - big) / 2) + 'px';
+    w.appendChild(img); return w;
+  }
+  function hm(ms) { var d = new Date(ms), p = function (x) { return (x < 10 ? '0' : '') + x; }; return d.toDateString() === new Date().toDateString() ? p(d.getHours()) + ':' + p(d.getMinutes()) : p(d.getDate()) + '.' + p(d.getMonth() + 1); }
+  function renderRaven(r) {
+    if (!r || !r.on || (!r.list.length && !r.requests)) { rvh.hidden = true; rvh.textContent = ''; return; }
+    rvh.hidden = false; rvh.textContent = '';
+    var head = el('div', 'rvh-head');
+    var h2 = el('h2');
+    h2.innerHTML = '<svg viewBox="0 0 49 52" aria-hidden="true"><use href="#rvh-wing"/></svg>';
+    h2.appendChild(el('span', null, r.title || 'Raven'));
+    head.appendChild(h2);
+    if (r.total) head.appendChild(el('span', 'rvh-count', T(r.total === 1 ? '1 unread' : r.total + ' unread')));
+    if (r.requests) head.appendChild(el('span', 'rvh-count', T(r.requests === 1 ? '1 friend request' : r.requests + ' friend requests')));
+    var all = el('button', 'rvh-all', 'All chats'); all.type = 'button';
+    all.addEventListener('click', function () { post({ t: 'raven-open', key: '*' }); });
+    head.appendChild(all);
+    rvh.appendChild(head);
+    r.list.forEach(function (f) {
+      var row = el('button', 'rvh-row'); row.type = 'button';
+      row.addEventListener('click', function () { post({ t: 'raven-open', key: f.key }); });
+      row.appendChild(avatar(f.av, 40));
+      var t = el('span', 'rvh-t');
+      var n = el('span', 'rvh-n');
+      var nm = el('strong', null, f.name); nm.dataset.raw = ''; n.appendChild(nm);
+      var at = el('span', 'rvh-at', hm(f.at)); at.dataset.raw = ''; n.appendChild(at);
+      t.appendChild(n);
+      var tx = el('span', 'rvh-text', f.text || ''); tx.dataset.raw = '';
+      if (f.url) { var hs = el('span', 'host', (f.text ? ' · ' : '') + host(f.url)); tx.appendChild(hs); }
+      t.appendChild(tx);
+      row.appendChild(t);
+      row.appendChild(el('span', 'rvh-dot'));
+      rvh.appendChild(row);
+    });
+  }
+  wv.addEventListener('message', function (e) { if (e.data && e.data.t === 'raven-home') renderRaven(e.data.raven); });
+
   function reveal() { if (!got) { got = true; dock.hidden = false; fit(); } }
   post({ t: 'home-get' });
 })();
@@ -229,6 +273,8 @@
       ['timer 5m|timer 1:30 boss|10 min timer', 'A timer: a chime and a notification when it ends, even while holstered'],
       ['timer off|click the ⏱ in the strip', 'Stop timers'],
       ['n …|note …|н …|нотатка …', 'Adds a line, stamped with the time, to the notes on this page'],
+      ['Alt + V|cb|буфер', 'What you copied in Sidearm (text and pictures, the last 10); Enter copies one again. Kept in memory only'],
+      ['cb word', 'Only the copies with that word'],
       ['нщгегиу|ghbdsn', 'Typed in the wrong keyboard layout? The bar offers the same keys the other way'],
       ['example.com', 'Opens the address directly']
     ]],
@@ -259,6 +305,10 @@
       ['Alt + F', 'Clear fog: overlays, "subscribe" walls, blur, scroll locks'],
       ['Alt + P|Shield → Pop out|right-click a video', 'Pop out the video: its own small always-on-top window that stays up while you play'],
       ['Right-click the pop-out\'s title', 'Its opacity'],
+      ['Alt + Shift + P|Shield → Pop out page|right-click a page', 'Pop out the page: its own small window over the game; nothing reloads, a map keeps its place'],
+      ['Right-click a pop-out page\'s title → Back to Sidearm|Alt + Shift + P in it', 'Back into Sidearm as a tab (Ctrl + W in it closes it)'],
+      [GK + ' with pop-outs up', 'They go see-through together with Sidearm (holstered: just the pop-outs)'],
+      ['Settings → General → Pop-outs hide with Sidearm', 'They go away when you holster and come back when you draw'],
       ['Settings → Pages → Blocker', 'uBlock Origin Lite instead of Sidearm\'s own lists (experimental)'],
       ['YouTube ads', 'Muted, skipped to the end and Skip pressed (Settings → Pages)'],
       ['Shield button', 'This site: ads on/off, reader, auto-fog, force dark, look-up, zoom'],
@@ -271,7 +321,18 @@
       ['Alt + Shift + Enter', 'Glance opens in a new tab'],
       ['Ctrl + Enter', 'Send the Glance page (or this page) to ' + BR],
       ['Esc|click outside', 'Close the Glance'],
+      ['Buttons beside the Glance', 'Close · open here · new tab · ' + BR + ' · copy link · send to a friend'],
       ['Right-click a link', 'Glance · ' + BR + ' · private window · Send to ' + AI + ' · Copy link (clean)']
+    ]],
+    ['Raven', [
+      ['Settings → Raven', 'Turn it on: messages and links to friends\' Sidearms, encrypted on your PC'],
+      ['Add a friend → Invite', 'A code to send your friend (works once, for 24 hours)'],
+      ['Add a friend → I have a code', 'Paste theirs; then read the four words to each other: the same words mean it\'s really them'],
+      ['Tabs at the window\'s side', 'Whoever wrote; the wing opens every chat (they move to the right side when Sidearm is against the left edge)'],
+      ['@name text', 'Sends it from the bar with the page you\'re on; Shift + Enter sends the text only; Tab picks another friend'],
+      ['Right-click a page|a link|Glance\'s wing', 'Send it to a friend'],
+      ['The card that pops up', 'A quick reply: a ready answer, or type and press Enter'],
+      ['☆ in a chat', 'Pin a friend: their messages come first on this page']
     ]],
     ['Gestures', null],
     ['Feel', [

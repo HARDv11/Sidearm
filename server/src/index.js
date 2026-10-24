@@ -46,7 +46,16 @@ const sha256 = data => crypto.subtle.digest('SHA-256', typeof data === 'string' 
 /** The inbox id of a public key: the first 26 base64url characters of its SHA-256 (156 bits). */
 export async function inboxIdOf(rawKey) { return b64u.enc(await sha256(rawKey)).slice(0, 26); }
 
-const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json' } });
+// Sidearm's pages run on their own origin (https://sidearm.example), so the browser asks first (CORS). Every call is
+// signed anyway, so any origin may ask; the Date header is exposed so a client with a wrong clock can correct itself.
+const CORS = {
+  'access-control-allow-origin': '*',
+  'access-control-allow-methods': 'GET, POST, PUT',
+  'access-control-allow-headers': 'content-type, x-sidearm-key, x-sidearm-time, x-sidearm-sig',
+  'access-control-expose-headers': 'date',
+  'access-control-max-age': '86400'
+};
+const json = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json', ...CORS } });
 const fail = (status, error) => json({ error }, status);
 
 /**
@@ -80,6 +89,7 @@ async function verify(request, url, bodyBytes) {
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     if (url.pathname === '/' && request.method === 'GET') {
       return new Response('Sidearm post office v' + VERSION + '. Nothing to see here: Sidearm talks to it by itself.\n', { headers: { 'content-type': 'text/plain; charset=utf-8' } });
     }
@@ -110,7 +120,11 @@ export default {
       headers: { 'x-verified-key': who.keyB64, 'x-owner': owner ? '1' : '0', ...(op === 'ws' ? { upgrade: 'websocket' } : {}) },
       body: request.method === 'GET' ? undefined : body
     });
-    return stub.fetch(inner);
+    const res = await stub.fetch(inner);
+    if (op === 'ws') return res; // a WebSocket upgrade passes through as it is
+    const out = new Response(res.body, res);
+    for (const [k, v] of Object.entries(CORS)) out.headers.set(k, v);
+    return out;
   }
 };
 

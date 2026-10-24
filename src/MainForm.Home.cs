@@ -33,6 +33,12 @@ namespace Sidearm
                     case "home-get":
                         PostToContent(tab, new { t = "notes", text = ReadNotes() });
                         PostToContent(tab, new { t = "pins", list = ReadPins() });
+                        PostToContent(tab, new { t = "raven-home", raven = RavenHomeView() });
+                        break;
+                    case "raven-open":
+                        string key = Json.Str(m, "key");
+                        if (key == "*") OpenRaven("list", null, null);
+                        else if (raven != null && raven.Find(key) != null) OpenRaven("chat", key, null);
                         break;
                     case "notes-set":
                         WriteNotes(Json.Str(m, "text") ?? "");

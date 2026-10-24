@@ -37,6 +37,16 @@ namespace Sidearm
         string ThemeName { get { return IsLight ? "light" : "dark"; } }
         Color FrameColor { get { return Tinted(IsLight ? Color.FromArgb(0xEB, 0xE8, 0xE0) : Color.FromArgb(0x11, 0x14, 0x16)); } }
         Color FrameLine { get { return IsLight ? Color.FromArgb(0xC4, 0xBD, 0xAE) : Color.FromArgb(0x2B, 0x31, 0x33); } }
+        /// <summary>The accent: your color from Settings → Look, else the theme's brass.</summary>
+        Color AccentColor
+        {
+            get
+            {
+                if (!string.IsNullOrEmpty(S.accent) && S.accent.Length == 7)
+                    try { return ColorTranslator.FromHtml(S.accent); } catch (Exception) { }
+                return IsLight ? Color.FromArgb(0xA2, 0x6C, 0x14) : Color.FromArgb(0xD4, 0xA2, 0x4C);
+            }
+        }
         Color PageColor { get { return IsLight ? Color.FromArgb(0xF4, 0xF2, 0xEC) : Color.FromArgb(0x0D, 0x0F, 0x10); } }
 
         bool themeHooked;
@@ -124,6 +134,7 @@ namespace Sidearm
         void PostToTabsView(string json)
         {
             if (!tabsReady || tabsView == null || tabsView.CoreWebView2 == null) return;
+            if (json.StartsWith("{\"type\":\"raven", StringComparison.Ordinal) || json.StartsWith("{\"type\":\"clips\"", StringComparison.Ordinal)) return; // the engine's keys and your copies stay in the strip
             try { tabsView.CoreWebView2.PostWebMessageAsJson(json); } catch (Exception) { }
         }
 

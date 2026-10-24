@@ -332,6 +332,20 @@
     return m && m[1].trim() ? m[1].trim().slice(0, 2000) : null;
   }
 
+  // ───────────── clipboard history: "cb", "cb word", "буфер" (0.9) ─────────────
+
+  function clips(text) {
+    var m = /^\s*(?:cb|clip|clips|clipboard|буфер|бф)(?:\s+([\s\S]*))?$/i.exec(text || '');
+    return m ? { filter: (m[1] || '').trim() } : null;
+  }
+
+  // ───────────── Raven: "@оля глянь" sends to a friend (0.9) ─────────────
+
+  function friendCmd(text) {
+    var m = /^\s*@(\S*)(?:\s+([\s\S]*))?$/.exec(text || '');
+    return m ? { who: m[1], text: (m[2] || '').trim() } : null;
+  }
+
   // ───────────── wrong keyboard layout: "нщгегиу" → "youtube", "ghbdsn" → "привіт" ─────────────
 
   var EN = "qwertyuiop[]asdfghjkl;'zxcvbnm,./`";
@@ -420,7 +434,7 @@
   /**
    * resolve('w treaty of westphalia', config) →
    *   { kind: 'bang', key: 'w', name: 'Wikipedia (EN)', query: 'treaty of westphalia', url: '…' }
-   * kinds: calc · units · money · timer · note · bang · url · search · empty
+   * kinds: calc · units · money · timer · note · clips · friend · bang · url · search · empty
    * A search typed in the wrong keyboard layout also carries fix: the same keys in the other layout.
    */
   function resolve(text, config) {
@@ -437,6 +451,10 @@
         return { kind: 'bang', key: key, name: bangs[key].name || key, query: rest, url: fill(bangs[key].url, rest) };
       }
     }
+    var fr = friendCmd(t);
+    if (fr) return { kind: 'friend', who: fr.who, text: fr.text };
+    var cl = clips(t);
+    if (cl) return { kind: 'clips', filter: cl.filter };
     var nt = note(t);
     if (nt) return { kind: 'note', text: nt };
     var tm = timer(t);
@@ -464,7 +482,7 @@
   }
 
   var api = {
-    resolve: resolve, note: note, layoutFix: layoutFix, calc: calc, evaluate: evaluate, units: units, asUrl: asUrl, money: money, timer: timer, clock: clock,
+    resolve: resolve, note: note, clips: clips, friendCmd: friendCmd, layoutFix: layoutFix, calc: calc, evaluate: evaluate, units: units, asUrl: asUrl, money: money, timer: timer, clock: clock,
     bangSuggestions: bangSuggestions, bareBang: bareBang, plainNumber: plainNumber, prettyNumber: prettyNumber
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;

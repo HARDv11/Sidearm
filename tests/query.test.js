@@ -40,4 +40,11 @@ for (const [inp, kind, val] of v08) {
   const got = kind === 'note' ? r.text : (r.fix || null);
   if (r.kind !== kind || got !== val) { fail++; console.log('FAIL', JSON.stringify(inp), '→', JSON.stringify(r)); }
 }
-console.log(fail ? fail+' failures' : 'all '+(cases.length+v08.length)+' passed');
+// 0.9: clipboard history ([input, kind, filter])
+const v09 = [['cb','clips',''], ['cb potion code','clips','potion code'], ['буфер','clips',''], ['clipboard','clips',''],
+ ['бф ключ','clips','ключ'], ['cbx','search',undefined], ['w cb','bang',undefined]];
+for (const [inp, kind, val] of v09) {
+  const r = Q.resolve(inp, cfg);
+  if (r.kind !== kind || (val !== undefined && r.filter !== val)) { fail++; console.log('FAIL', JSON.stringify(inp), '→', JSON.stringify(r)); }
+}
+console.log(fail ? fail+' failures' : 'all '+(cases.length+v08.length+v09.length)+' passed');

@@ -95,9 +95,48 @@
       var resolved = m.s.theme === 'system' ? (window.matchMedia && matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark') : m.s.theme;
       try { if (!localStorage.getItem('sidearm.theme')) localStorage.setItem('sidearm.theme', resolved); } catch (e) {}
     }
+    renderRaven(m.raven || {});
     $('version').textContent = 'Sidearm ' + (m.version || '');
     renderSites(m.sites || {});
   }
+
+  // ───────────── 0.9: Raven ─────────────
+
+  var avBuilt = false, delArmed = 0;
+  function renderRaven(r) {
+    var sec = $('raven');
+    sec.classList.toggle('off', !S.raven);
+    var title = r.title || 'Raven';
+    $('ravenH').textContent = title; $('ravenOnL').textContent = title; $('ravenNav').textContent = title;
+    [$('ravenH'), $('ravenOnL'), $('ravenNav')].forEach(function (n) { n.setAttribute('data-raw', ''); });
+    $('ravenStatus').textContent = T(!S.raven ? 'Off' : r.online ? 'On, connected to the post office' : 'On, connecting…');
+    $('ravenFriends').textContent = T(!r.friends && !r.requests ? 'No friends yet' : (r.friends === 1 ? '1 friend' : r.friends + ' friends')) + (r.requests ? ' \u00b7 ' + T(r.requests === 1 ? '1 request' : r.requests + ' requests') : '');
+    var box = $('avatars');
+    if (!avBuilt) {
+      avBuilt = true;
+      for (var i = 0; i < 5; i++) (function (n) {
+        var b = el('button', 's-avatar');
+        b.type = 'button';
+        b.title = T(['Planet', 'Cheese', 'Cake', 'Pyramid', 'Clouds (by soikach)'][n]);
+        var img = el('img'); img.alt = ''; img.src = 'avatars/' + n + '.webp';
+        b.appendChild(img);
+        b.addEventListener('click', function () { S.avatar = n; set('avatar', n); renderRaven(r); });
+        box.appendChild(b);
+      })(i);
+    }
+    box.querySelectorAll('.s-avatar').forEach(function (b, i) { b.classList.toggle('on', i === (+S.avatar || 0)); b.setAttribute('aria-pressed', i === (+S.avatar || 0)); });
+    $('raven').querySelector('[data-text="quickReplies"]').placeholder = (window.SidearmI18n && window.SidearmI18n.lang === 'uk') ? 'Так | Ні | 5 хв' : 'Yes | No | 5 min';
+  }
+  $('ravenAdd').addEventListener('click', function () { action('ravenAdd'); });
+  $('ravenList').addEventListener('click', function () { action('ravenList'); });
+  $('ravenDelete').addEventListener('click', function () {
+    var b = this;
+    if (Date.now() < delArmed) { delArmed = 0; b.textContent = T('Delete'); b.classList.remove('warn'); action('ravenDelete'); flashSaved(); return; }
+    delArmed = Date.now() + 4000;
+    b.textContent = T('Click again to delete');
+    b.classList.add('warn');
+    setTimeout(function () { if (Date.now() >= delArmed) { b.textContent = T('Delete'); b.classList.remove('warn'); } }, 4100);
+  });
 
   // ───────────── hotkey capture ─────────────
 
