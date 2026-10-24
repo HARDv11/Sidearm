@@ -1,0 +1,13 @@
+{
+  "name": "sidearm-post",
+  "private": true,
+  "description": "Sidearm post office: inboxes on Cloudflare Workers + Durable Objects",
+  "scripts": {
+    "dev": "wrangler dev --local",
+    "deploy": "wrangler deploy",
+    "smoke": "node test/smoke.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.152.0"
+  }
+}

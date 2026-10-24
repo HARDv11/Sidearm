@@ -1,0 +1,16 @@
+# Sidearm post office (Cloudflare Workers + a SQLite Durable Object per inbox). Free plan is enough.
+name = "sidearm-post"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "INBOX"
+class_name = "Inbox"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Inbox"]
+
+[observability]
+enabled = true

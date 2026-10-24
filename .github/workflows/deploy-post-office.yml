@@ -1,0 +1,47 @@
+# Publishes server/ (the Sidearm post office) to Cloudflare Workers, then runs the end-to-end check against it.
+# Needs two repository secrets: CLOUDFLARE_API_TOKEN ("Edit Cloudflare Workers" token) and CLOUDFLARE_ACCOUNT_ID.
+# Without them it does nothing (so the repo doesn't go red before they're set).
+name: Deploy post office
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['server/**', '.github/workflows/deploy-post-office.yml']
+
+concurrency: post-office
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      HAS_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+    steps:
+      - name: Secrets set?
+        if: env.HAS_TOKEN != 'true'
+        run: echo "CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID aren't set yet, so nothing is deployed."
+      - uses: actions/checkout@v4
+        if: env.HAS_TOKEN == 'true'
+      - uses: actions/setup-node@v4
+        if: env.HAS_TOKEN == 'true'
+        with:
+          node-version: 22
+      - name: Install
+        if: env.HAS_TOKEN == 'true'
+        working-directory: server
+        run: npm install --no-audit --no-fund
+      - name: Deploy
+        id: deploy
+        if: env.HAS_TOKEN == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: server
+          packageManager: npm
+      - name: Check the live post office
+        if: env.HAS_TOKEN == 'true'
+        working-directory: server
+        run: |
+          echo "Post office: ${{ steps.deploy.outputs.deployment-url }}"
+          node test/smoke.mjs "${{ steps.deploy.outputs.deployment-url }}"
