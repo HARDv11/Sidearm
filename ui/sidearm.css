@@ -848,12 +848,12 @@ body.rv-page { margin: 0; background: var(--page); color: var(--text); font: 14p
 .rv-day { align-self: center; color: var(--dim); font: 11px var(--font-mono); padding: 4px 0; }
 .rv-msg { align-self: flex-start; max-width: 86%; display: flex; flex-direction: column; gap: 3px; }
 .rv-msg.mine { align-self: flex-end; align-items: flex-end; }
-.rv-bubble { background: var(--panel); border: 1px solid var(--line); border-radius: 12px 12px 12px 4px; overflow: hidden; }
+.rv-bubble { background: var(--panel); border: 1px solid var(--line); border-radius: 12px 12px 12px 4px; overflow: hidden; max-width: 100%; min-width: 0; box-sizing: border-box; }
 .rv-msg.mine .rv-bubble { background: var(--accent-soft); border-color: rgba(var(--accent-rgb), .38); border-radius: 12px 12px 4px 12px; }
 .rv-text { padding: 8px 11px; white-space: pre-wrap; word-break: break-word; font-size: 13.5px; }
 .rv-meta { display: flex; gap: 6px; color: var(--dim); font: 10.5px var(--font-mono); }
 .rv-state.failed { color: var(--warn); }
-.rv-card { display: flex; align-items: center; gap: 8px; padding: 8px 11px; border-top: 1px solid var(--line); background: var(--raise); color: var(--text); text-decoration: none; font-size: 12px; }
+.rv-card { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; box-sizing: border-box; padding: 8px 11px; border-top: 1px solid var(--line); background: var(--raise); color: var(--text); text-decoration: none; font-size: 12px; }
 .rv-card:first-child { border-top: 0; }
 .rv-card:hover { background: color-mix(in srgb, var(--raise) 70%, var(--accent) 12%); }
 .rv-card .rv-ic { color: var(--accent); }
@@ -868,13 +868,15 @@ body.rv-page { margin: 0; background: var(--page); color: var(--text); font: 14p
 .rv-compose { flex: none; border-top: 2px solid var(--line-2); padding: 10px; display: flex; flex-direction: column; gap: 8px; }
 .rv-compose.disabled { opacity: .5; pointer-events: none; }
 .rv-compose.compact { border-top: 0; padding: 0; }
-.rv-compose-row { display: flex; align-items: flex-end; gap: 8px; }
+.rv-compose-row { display: flex; align-items: flex-end; gap: 6px; }
 .rv-attach { width: 34px; height: 48px; flex: none; border: 0; border-radius: 8px; background: transparent; color: var(--dim); display: grid; place-items: center; padding: 0; }
 .rv-attach:hover { color: var(--text); background: var(--raise); }
 .rv-attach.on { color: var(--on-accent); background: var(--accent); }
 .rv-input { flex: 1; min-width: 0; min-height: 48px; max-height: 96px; resize: none; padding: 13px 12px; border: 2px solid var(--line-2); border-radius: 10px; background: var(--panel); color: var(--text); font: 14px/1.35 var(--font-text); outline: none; user-select: text; }
 .rv-input:focus { border-color: rgba(var(--accent-rgb), .7); }
-.rv-input::placeholder { color: var(--faint); }
+.rv-input::placeholder { color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rv-input { overflow-y: hidden; scrollbar-width: thin; }
+.rv-input.long { overflow-y: auto; }
 .rv-send { width: 52px; height: 52px; flex: none; border: 2px solid var(--line-2); border-radius: 11px; background: var(--panel); color: var(--text); display: grid; place-items: center; padding: 0; transition: transform .12s, border-color .12s, color .12s; }
 .rv-send .rv-ic { width: 30px; height: 32px; }
 .rv-send:hover { border-color: var(--accent); color: var(--accent); }

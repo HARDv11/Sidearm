@@ -111,7 +111,7 @@
     input.value = drafts[key] || '';
     input.addEventListener('input', function () { drafts[key] = input.value; grow(); holdPeek(); });
     input.addEventListener('focus', holdPeek);
-    function grow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 96) + 'px'; }
+    function grow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 96) + 'px'; input.classList.toggle('long', input.scrollHeight > 96); }
     function go() {
       var text = input.value.trim(), withPage = attach && attach.classList.contains('on');
       if (!text && !withPage) return;

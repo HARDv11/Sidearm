@@ -25,7 +25,7 @@ const chat = { t: 'chat', key: K('a'), msgs: [
   { id: '1', mine: false, text: 'Ти вже бачив новий патч?', at: now - 3600000, state: '' },
   { id: '2', mine: true, text: 'Ні, кинь посилання', at: now - 3500000, state: 'delivered' },
   { id: '3', mine: false, text: 'Ось, там і банер', url: 'https://www.hoyolab.com/article/123', title: 'Нотатки до оновлення 5.2', at: now - 60000, state: '' },
-  { id: '4', mine: true, text: 'Дякую! Гляну після рейду', at: now - 30000, state: 'sent' },
+  { id: '4', mine: true, text: 'Дякую! Гляну після рейду', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', title: 'Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster) - YouTube', at: now - 30000, state: 'sent' },
   { id: '5', mine: false, text: 'А ось де бос', pic: 'AbCdEfGhIjKlMnOpQrSt.webp', w: 1100, h: 700, at: now - 10000, state: '' }
 ] };
 const PIC = 'data:image/webp;base64,' + fs.readFileSync(require('path').join(__dirname, '..', '..', 'ui', 'avatars', '1.webp')).toString('base64');
@@ -65,6 +65,8 @@ const results = {};
   await r.click('.rv-attach');
   await r.click('.rv-send');
   results.sent = await r.evaluate(() => window.__posted.filter(m => m.t === 'send').slice(-1)[0]);
+  // 0.9.6: your own message with a long link stays inside the window
+  results.mineInside = await r.evaluate(() => [...document.querySelectorAll('.rv-msg.mine .rv-bubble')].every(b => { const q = b.getBoundingClientRect(); return q.left >= 0 && q.right <= innerWidth; }));
   results.picShown = await r.evaluate(() => { const i = document.querySelector('.rv-pic img'); return !!i && i.src.startsWith('data:image/webp'); });
   await r.click('.rv-cam');
   results.camera = await r.evaluate(() => window.__posted.filter(m => m.t === 'shot').slice(-1)[0]);

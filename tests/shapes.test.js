@@ -41,6 +41,10 @@ cases.push(['check', [[0, 0.6], [0.25, 1], [0.9, -0.1]]]);
 cases.push(['z', [[0, 0], [1, 0], [0, 1], [1, 1]]]);
 cases.push(['zigzag', [[0, 0], [0.2, 0.7], [0.4, 0], [0.6, 0.7], [0.8, 0], [1, 0.7]]]);
 cases.push(['zigzag', [[1, 0.6], [0.8, 0], [0.6, 0.6], [0.4, 0], [0.2, 0.6], [0, 0]]]);
+// 0.9.5.1: a natural wave and a short zigzag are zigzags too
+const sineP = (periods, amp, back) => { const p = []; for (let i = 0; i <= 40; i++) { const x = i / 40; p.push([back ? 1 - x : x, amp * Math.sin(x * Math.PI * 2 * periods)]); } return p; };
+cases.push(['zigzag', sineP(1, 0.3, false)], ['zigzag', sineP(2, 0.25, true)], ['zigzag', sineP(1.5, 0.35, false)]);
+cases.push(['zigzag', [[0, 0.5], [0.25, 0], [0.5, 0.5], [0.75, 0], [1, 0.5]]], ['zigzag', [[1, 0], [0.75, 0.6], [0.5, 0], [0.25, 0.6], [0, 0]]]);
 const shapeOf = r => r && r.name;
 for (const [name, pts] of cases) {
   for (let i = 0; i < 4; i++) {

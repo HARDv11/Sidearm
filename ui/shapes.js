@@ -88,10 +88,20 @@ var SidearmShapes = (function () {
   add('check', [[0, 0.45], [0.38, 1], [1, 0.05]]);
   add('z', [[0, 0], [1, 0], [0, 1], [1, 1]]);
   add('z', [[0.05, 0], [1, 0.05], [0, 0.95], [1, 1]]);
-  add('zigzag', [[0, 0], [0.2, 1], [0.4, 0], [0.6, 1], [0.8, 0], [1, 1]]);
-  add('zigzag', [[1, 0], [0.8, 1], [0.6, 0], [0.4, 1], [0.2, 0], [0, 1]]);
-  add('zigzag', [[0, 1], [0.2, 0], [0.4, 1], [0.6, 0], [0.8, 1], [1, 0]]);
-  add('zigzag', [[1, 1], [0.8, 0], [0.6, 1], [0.4, 0], [0.2, 1], [0, 0]]);
+  // a zigzag or a wave: 4 to 7 strokes or 2-3 humps, either way along, starting up or down (0.9.5.1: a natural
+  // "~~" or a short "/\\/\\" counts too, not only the exact five-stroke one)
+  function zig(n, back, up) {
+    var p = [];
+    for (var i = 0; i <= n; i++) { var x = i / n; p.push([back ? 1 - x : x, (i % 2 === 0) === up ? 0 : 1]); }
+    return p;
+  }
+  function wave(humps, back, up) {
+    var p = [];
+    for (var i = 0; i <= 48; i++) { var x = i / 48; p.push([back ? 1 - x : x, 0.5 + (up ? -0.5 : 0.5) * Math.sin(x * Math.PI * humps)]); }
+    return p;
+  }
+  [4, 5, 6, 7].forEach(function (n) { [false, true].forEach(function (b) { [false, true].forEach(function (u) { add('zigzag', zig(n, b, u)); }); }); });
+  [2, 3, 4, 5].forEach(function (h) { [false, true].forEach(function (b) { [false, true].forEach(function (u) { add('zigzag', wave(h, b, u)); }); }); });
 
   /**
    * Which shape this stroke is, if any: { name, score (0-1), custom } or null.
@@ -100,7 +110,7 @@ var SidearmShapes = (function () {
   function recognize(raw, mine) {
     if (!raw || raw.length < 8) return null;
     var b = box(raw), big = Math.max(b.w, b.h);
-    if (big < 40 || Math.min(b.w, b.h) < big * 0.22) return null;
+    if (big < 40 || Math.min(b.w, b.h) < big * 0.14) return null;
     var cand = normalize(raw);
     if (!cand) return null;
     var best = null;

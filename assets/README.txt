@@ -1,4 +1,4 @@
-SIDEARM 0.9.5 · "Recon" (Розвідка)
+SIDEARM 0.9.6 · "Recon" (Розвідка)
 "Switching to your sidearm is faster than opening a browser."
 
 START
@@ -25,6 +25,11 @@ UPDATING
      over your sign-ins, open tabs and settings. Say yes, and you're still signed in everywhere.
   By hand: copy the old "data" folder next to the new Sidearm.exe before its first start.
   Never send your data folder to anyone: it holds your sign-ins.
+
+NEW IN 0.9.6
+  Fixed                 in a Raven chat, your own message with a long link title stuck out past the window's
+                        left edge; the message box no longer wraps its hint or shows a scrollbar for nothing
+  Gestures              the zigzag gesture takes a wave (~~) or a short zigzag too, not only five exact strokes
 
 NEW IN 0.9.5
   Screenshots           Alt + S (or the shield panel): drag over a part of the page, or take what you see, or the
@@ -247,7 +252,7 @@ GESTURES (hold the right mouse button, flick about 40 px, let go)
   <-  back            ->  forward          ^  top of page        v  close Glance, or holster
   ^ then v  reload    v then ->  start page   v then <-  new tab
   Shapes: circle clockwise = screenshot, counter-clockwise = blank sheet, square = pop out the page,
-  triangle = reader view, tick = send the page to a friend, Z = ghost mode, zigzag = sound on/off.
+  triangle = reader view, tick = send the page to a friend, Z = ghost mode, zigzag or wave = sound on/off.
   Your own: Settings -> Gestures -> draw it three times, name it, pick what it does.
   A plain right-click still opens the menu. Change or switch off any of them in Settings -> Gestures.
 

@@ -850,7 +850,6 @@ window.SIDEARM_UK = {
 "Fewer": "Менше",
 "Screenshots": "Скріншоти",
 "Shapes": "Фігури",
-"Draw one with the right button held: a circle (either way round), a square, a triangle, a tick, a Z or a zigzag.": "Намалюйте її, затиснувши праву кнопку: коло (в будь-який бік), квадрат, трикутник, галочку, Z або зигзаг.",
 "Your own gestures": "Ваші жести",
 "Draw it three times in the box below, name it and pick what it does. Up to 12.": "Намалюйте його тричі в полі нижче, назвіть і виберіть, що він робить. До 12.",
 "Draw it here with the left button, the way you'll draw it with the right.": "Малюйте тут лівою кнопкою — так, як малюватимете правою.",
@@ -898,9 +897,7 @@ window.SIDEARM_UK = {
 "□ a square": "□ квадрат",
 "△ a triangle": "△ трикутник",
 "✓ a tick": "✓ галочка",
-"〰 a zigzag": "〰 зигзаг",
 "Hold right button, draw a shape": "Затисніть праву кнопку й намалюйте фігуру",
-"Circle, square, triangle, ✓, Z or a zigzag; or your own (Settings → Gestures → Record)": "Коло, квадрат, трикутник, ✓, Z чи зигзаг; або свій жест (Налаштування → Жести)",
 "A pop-out's strip": "Смужка виноски",
 "Drag to move · ↩ back into Sidearm · ghost · × · the wheel sets its opacity · right-click for the menu": "Тягніть, щоб перемістити · ↩ назад у Sidearm · привид · × · коліщатко — прозорість · правий клік — меню",
 "Alt + Shift + P in a pop-out page": "Alt + Shift + P у винесеній сторінці",
@@ -935,7 +932,10 @@ window.SIDEARM_UK = {
 "Click the middle button": "Клацніть середньою кнопкою",
 "The joystick stays on until the next click or Esc; the wheel changes its speed": "Джойстик лишається ввімкненим до наступного клацання чи Esc; коліщатко змінює швидкість",
 "Settings → Feel → Scroll joystick": "Налаштування → Відчуття → Джойстик прокрутки",
-"Its speed, or a key that starts it where the pointer is": "Його швидкість або клавіша, що вмикає його під вказівником"
+"Its speed, or a key that starts it where the pointer is": "Його швидкість або клавіша, що вмикає його під вказівником",
+"Draw one with the right button held: a circle (either way round), a square, a triangle, a tick, a Z, or a zigzag or wave.": "Намалюйте її, затиснувши праву кнопку: коло (в будь-який бік), квадрат, трикутник, галочку, Z або зигзаг чи хвилю.",
+"〰 a zigzag or a wave": "〰 зигзаг або хвиля",
+"Circle, square, triangle, ✓, Z, a zigzag or a wave; or your own (Settings → Gestures → Record)": "Коло, квадрат, трикутник, ✓, Z, зигзаг чи хвиля; або свій жест (Налаштування → Жести)"
 },
 "templates": [
 ["Found an earlier Sidearm in {1}. Bring over your sign-ins, tabs and settings? The old copy stays as it is.", "Знайдено попередній Sidearm у {1}. Перенести входи в акаунти, вкладки й налаштування? Стара копія лишиться як є."],

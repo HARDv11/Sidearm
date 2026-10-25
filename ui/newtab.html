@@ -260,7 +260,7 @@
     newTab: 'New tab', reopen: 'Reopen the last closed tab', home: 'This start page',
     popPage: 'Pop out the page', shot: 'Screenshot', draw: 'A blank sheet to draw on', clips: 'What you copied (Alt + V)', send: 'Send the page to a friend',
     raven: 'Raven: all chats', ghost: 'Ghost mode', joystick: 'The scroll joystick, right there', mute: 'Sound on or off', reader: 'Reader view', translate: 'Translate the page' };
-  var SHAPES = { '@circle': '○ clockwise', '@circleBack': '○ counter-clockwise', '@square': '□ a square', '@triangle': '△ a triangle', '@check': '✓ a tick', '@z': 'Z', '@zigzag': '〰 a zigzag' };
+  var SHAPES = { '@circle': '○ clockwise', '@circleBack': '○ counter-clockwise', '@square': '□ a square', '@triangle': '△ a triangle', '@check': '✓ a tick', '@z': 'Z', '@zigzag': '〰 a zigzag or a wave' };
   var ARROWS = { L: '\u2190', R: '\u2192', U: '\u2191', D: '\u2193' };
 
   // [keys, what it does]. "|" separates alternative keys.
@@ -458,7 +458,7 @@
         });
         Object.keys(SHAPES).forEach(function (k) { if (gest[k] && GNAME[gest[k]]) rows.push([SHAPES[k], GNAME[gest[k]]]); });
         rows.unshift(['Hold right button, flick', 'About 40 px; a plain right-click still opens the menu']);
-        rows.push(['Hold right button, draw a shape', 'Circle, square, triangle, ✓, Z or a zigzag; or your own (Settings → Gestures → Record)']);
+        rows.push(['Hold right button, draw a shape', 'Circle, square, triangle, ✓, Z, a zigzag or a wave; or your own (Settings → Gestures → Record)']);
         rows.push(['Settings → Gestures', 'Change or switch off any of them']);
       }
     }

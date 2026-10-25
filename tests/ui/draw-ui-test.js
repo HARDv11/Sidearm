@@ -123,6 +123,8 @@ a.file{display:block;margin:6px 0;color:#1a5fb4}.tall{height:2400px;background:l
   results.gestDownLeft = await stroke([[600, 200], [600, 260], [600, 320], [540, 320], [470, 320]]);
   const tri = [[500, 220], [600, 400], [400, 400], [500, 220]].reduce((o, pt, i, a) => { if (i) for (let k = 1; k <= 8; k++) o.push([a[i - 1][0] + (pt[0] - a[i - 1][0]) * k / 8, a[i - 1][1] + (pt[1] - a[i - 1][1]) * k / 8]); else o.push(pt); return o; }, []);
   results.gestTriangle = await stroke(tri);
+  const gwave = []; for (let i = 0; i <= 30; i++) gwave.push([300 + i * 12, 380 + Math.sin(i / 30 * Math.PI * 4) * 45]);
+  results.gestWave = await stroke(gwave);
   // the label while drawing a square
   await p.mouse.move(400, 220); await p.mouse.down({ button: 'right' });
   for (const pt of [[600, 220], [600, 400], [400, 400], [400, 225]]) await p.mouse.move(pt[0], pt[1], { steps: 8 });

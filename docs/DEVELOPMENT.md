@@ -320,6 +320,13 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 
 Newest first. Every version name is in the log's `starting` line, so log entries can be matched to builds. Milestones 1–4 of the original plan map to 0.1, 0.3, 0.4 and 0.5.
 
+### 0.9.6 · Recon — 2026-10-25
+
+**Fixed**
+
+- Raven: your own message with a link card stuck out past the window's left edge when the link's title was long (the bubble sat at `align-items: flex-end` and took its nowrap title's full width; it's capped at 100% now). The message box keeps its hint on one line and shows a scrollbar only past 96 px.
+- The zigzag gesture: a wave (1 to 2.5 periods) or a zigzag of 4 to 7 strokes, either way and either phase; a stroke may be flatter (14 % instead of 22 % of its length) before it counts as a line.
+
 ### 0.9.5 · Recon — 2026-10-25
 
 *Screenshots you can draw on, a box that downloads everything in it, a scroll joystick and gestures you draw. In Ukrainian the version is called Розвідка.*
