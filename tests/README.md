@@ -18,7 +18,10 @@ Needs `node`, Mono (`mcs`, `mono`) and the build tools from `build.sh`. The UI t
 | `shell/LangTest.cs` | Ukrainian lookups through `Lang.T` (prints pairs; `?` marks are only the console's encoding) |
 | `shell/ShellTest.cs` | Settings validation, `VideoEmbedUrl`, `TranslateBatch` with a fake Google, NBU/ER-API parsing, the chime WAV, `Clock` |
 | `shell/MigrateTest.cs` | A new copy finds an older `data` folder and copies it without caches or logs |
-| `shell/UpdaterTest.cs` | Version compare, reading GitHub's release JSON (foreign links refused), SHA-256 check, zip paths that escape, swapping files in with `.old` copies, rollback after failed starts, confirm |
+| `shell/UpdaterTest.cs` | Version compare, reading GitHub's release JSON (foreign links refused), SHA-256 check, zip paths that escape, swapping files in with `.old` copies, rollback after failed starts, confirm, quitting early not counting (0.9.5) |
+| `shapes.test.js` | 0.9.5: shapes drawn by a shaky hand (gestures and the magic pen); straight flicks must not be shapes |
+| `shell/DrawTest.cs` | 0.9.5: drawings on disk, Raven's picture files, your own gestures, the gesture migration, joystick and box-color settings |
+| `ui/draw-ui-test.js` | 0.9.5: the drawing page (every tool, save, send) and the page script's screenshot picker, Alt + drag box, joystick and shape gestures |
 | `ui/ui-test.js` | Strip (tabs patched in place: zero DOM mutations over 20 busy updates), palette (money, timer), shield panel, quick bar, settings sections, in-place translation in `inject.js`, field manual, `pop.html` |
 
 Screenshots of the UI test are the real check for layout: look at them after any CSS change.

@@ -98,8 +98,27 @@ async function until(fn, ms = 4000) { const end = Date.now() + ms; while (Date.n
   let long = null; try { await B.core.send(a.key, { t: 'msg', text: 'ж'.repeat(5000) }); } catch (e) { long = e.message; }
   ok(long === 'too long', 'a very long message is refused before it\'s sent');
 
+  // 0.9.5: pictures. Pushed without contents, fetched with "get", opened like any message
+  const img = 'data:image/webp;base64,' + Buffer.from(Array.from({ length: 200 * 1024 }, (_, i) => (i * 7919) & 255)).toString('base64');
+  const pic = await B.core.send(a.key, { t: 'pic', img, w: 1600, h: 900, text: 'ось мапа', name: 'Борис', av: 2 });
+  ok(pic.delivered, 'a 200 KB picture goes through (pushed to A)');
+  ok(await until(() => A4.all('incoming').some(e => e.body.t === 'pic'), 6000), 'A gets the picture (fetched on its own)');
+  const got = A4.all('incoming').filter(e => e.body.t === 'pic').pop();
+  ok(got && got.body.img === img && got.body.w === 1600 && got.body.text === 'ось мапа', 'the picture arrives intact, with its size and caption');
+  A4.core.stop(); await sleep(300);
+  await B.core.send(a.key, { t: 'pic', img, w: 10, h: 10, name: 'Борис', av: 2 });
+  const A5 = sidearm('A5');
+  await A5.core.start(saved, [{ key: rq.from, dh: rq.dh }]);
+  ok(await until(() => A5.all('incoming').some(e => e.body.t === 'pic'), 6000), 'a picture sent while A was away comes on reconnect');
+  let big = null; try { await B.core.send(a.key, { t: 'pic', img: img + img.slice(23), w: 1, h: 1 }); } catch (e) { big = e.message; }
+  ok(big === 'picture too big', 'a picture over the limit is refused before it\'s sent');
+  const fake = await B.core.send(a.key, { t: 'pic', img: 'data:text/html;base64,PHNjcmlwdD4=', w: 1, h: 1, text: 'hm' });
+  ok(await until(() => A5.all('incoming').some(e => e.id === fake.id)), 'a "picture" that isn\'t one arrives');
+  const fk = A5.all('incoming').find(e => e.id === fake.id);
+  ok(fk && fk.body.t === 'msg' && !fk.body.img, '…as plain text, without the fake picture');
+
   // tidy up: the test inboxes go away
-  for (const s of [A4, B, C]) { const r = await s.core.deleteInbox(); if (r.status !== 200) fails++; s.core.stop(); }
+  for (const s of [A5, B, C]) { const r = await s.core.deleteInbox(); if (r.status !== 200) fails++; s.core.stop(); }
   console.log(fails ? fails + ' FAILED' : 'ALL PASSED');
   process.exit(fails ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

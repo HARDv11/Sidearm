@@ -12,21 +12,19 @@ namespace Sidearm
     internal sealed class PageWindow : FloatWindow
     {
         internal Tab Tab;
-        public event Action BackRequested;
         /// <summary>Raised while closing, before the window disposes anything: the shell takes the view out first.</summary>
         public event Action Closing2;
         public bool Returning; // closing because the page went back to Sidearm
 
         public PageWindow(string title, Rectangle bounds, Color back) : base(title, bounds, back)
         {
-            AddAction("Back to Sidearm  (Alt+Shift+P)", () => { var h = BackRequested; if (h != null) h(); });
+            AddAction("Back to Sidearm  (Alt+Shift+P)", RaiseBack);
         }
 
         public void Host(WebView2 v)
         {
             View = v;
-            v.Dock = DockStyle.Fill;
-            Controls.Add(v);
+            PlaceView(v);
         }
 
         /// <summary>Takes the view out again, before the window closes (so closing never disposes the page).</summary>

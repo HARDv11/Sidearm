@@ -26,16 +26,33 @@ namespace Sidearm
             }
         }
 
+        bool ravenHiding;
+
+        /// <summary>
+        /// 0.9.5: the chat first, then the tabs, and nothing may bring the tabs back meanwhile: hiding the chat asks for
+        /// the tabs to be redrawn, and Sidearm itself is still on screen at that moment (0.9.0 left a tab stuck there).
+        /// </summary>
         void HideRavenWindows()
         {
-            if (ravenTabs != null && ravenTabs.Visible) ravenTabs.Hide();
-            if (ravenWin != null && ravenWin.Visible) ravenWin.Hide();
+            ravenHiding = true;
+            try
+            {
+                if (ravenWin != null && ravenWin.Visible) ravenWin.Hide();
+                if (ravenTabs != null && ravenTabs.Visible) ravenTabs.Hide();
+            }
+            finally { ravenHiding = false; }
+        }
+
+        protected override void OnVisibleChanged(EventArgs e)
+        {
+            base.OnVisibleChanged(e);
+            if (!Visible) HideRavenWindows(); // whatever hid Sidearm, its side tabs go with it
         }
 
         /// <summary>Who gets a side tab: whoever wrote and hasn't been read, the open chat, then the wing for everyone.</summary>
         void UpdateRavenTabs()
         {
-            bool show = S.raven && S.ravenTabs && raven != null && Visible && !ghost && !fullscreen && WindowState == FormWindowState.Normal;
+            bool show = !ravenHiding && S.raven && S.ravenTabs && raven != null && Visible && !ghost && !fullscreen && WindowState == FormWindowState.Normal;
             if (!show) { if (ravenTabs != null && ravenTabs.Visible) ravenTabs.Hide(); return; }
             if (ravenTabs == null)
             {
@@ -88,11 +105,38 @@ namespace Sidearm
             int w = (int)(320 * s);
             int h = ravenWin != null && ravenWin.Mode == "peek" ? (int)(260 * s) : Math.Min((int)(560 * s), Math.Max((int)(380 * s), Height - ToPx(60)));
             int x = right ? Right + tw + gap : Left - tw - gap - w;
+            int y = Top + ToPx(84);
+            Point saved;
+            if (SavedRavenPos(out saved))
+            {
+                // 0.9.5: dragged somewhere and remembered; the screen it's on decides the limits
+                wa = Screen.FromPoint(new Point(saved.X + w / 2, saved.Y + ToPx(20))).WorkingArea;
+                x = saved.X; y = saved.Y;
+            }
             if (x < wa.Left) x = wa.Left + ToPx(4);
             if (x + w > wa.Right) x = wa.Right - w - ToPx(4);
-            int y = Top + ToPx(84);
+            if (y < wa.Top) y = wa.Top;
             if (y + h > wa.Bottom) y = Math.Max(wa.Top, wa.Bottom - h);
             return new Rectangle(x, y, w, h);
+        }
+
+        bool SavedRavenPos(out Point p)
+        {
+            p = Point.Empty;
+            var parts = (S.ravenPos ?? "").Split(',');
+            int x, y;
+            if (parts.Length != 2 || !int.TryParse(parts[0], out x) || !int.TryParse(parts[1], out y)) return false;
+            p = new Point(x, y);
+            foreach (var sc in Screen.AllScreens) if (sc.WorkingArea.IntersectsWith(new Rectangle(x, y, ToPx(120), ToPx(40)))) return true;
+            return false; // that monitor is gone: back beside Sidearm
+        }
+
+        void OnRavenWindowMoved()
+        {
+            if (ravenWin == null) return;
+            S.ravenPos = ravenWin.Left + "," + ravenWin.Top;
+            SaveSettingsSoon();
+            Log.Info("Raven: window moved, position kept");
         }
 
         async Task EnsureRavenWindow()
@@ -102,6 +146,7 @@ namespace Sidearm
             if (env == null) return;
             ravenWin = new RavenWindow(PageColor);
             ravenWin.Message += OnRavenWindowMessage;
+            ravenWin.Moved += OnRavenWindowMoved;
             ravenWin.VisibleChanged += (s, e) =>
             {
                 if (ravenWin == null) return;
@@ -194,6 +239,41 @@ namespace Sidearm
                         break;
                     case "read":
                         if (key != null) MarkRavenRead(key);
+                        break;
+                    case "pic": // 0.9.5: a picture in the chat, read when it scrolls into view
+                    {
+                        string name = Json.Str(m, "name");
+                        string data = raven.PicDataUrl(name);
+                        ravenWin.Post(new { t = "pic", name = name, data = data ?? "" });
+                        break;
+                    }
+                    case "picOpen": // big, on the drawing page: look closer, draw on it, keep it in the notes
+                    {
+                        string data = raven.PicDataUrl(Json.Str(m, "name"));
+                        var who = raven.Find(key);
+                        if (data != null) { ravenWin.Hide(); OpenDrawData(data, RavenTitle + (who != null ? " · " + who.Shown : ""), "", ""); }
+                        break;
+                    }
+                    case "sendPic": // pasted into the message box
+                    {
+                        var bytes = DrawStore.FromDataUrl(Json.Str(m, "data"), "image/webp", "image/jpeg", "image/png");
+                        if (bytes == null) { ravenWin.Post(new { t = "error", text = Lang.T("That isn't a picture Sidearm can send") }); break; }
+                        await RavenSendPic(key, bytes, (int)Json.Num(m, "w", 0), (int)Json.Num(m, "h", 0), Json.Str(m, "text"));
+                        break;
+                    }
+                    case "shot": // the camera in the chat: what you see on the page, to mark up and send to this friend
+                    {
+                        var tab = active;
+                        if (tab == null || tab.View == null || tab.View.CoreWebView2 == null) break;
+                        ravenWin.Hide();
+                        var png = await Capture(tab, "visible", 0, 0, 0, 0, 0, 0);
+                        if (png != null) OpenDraw(png, tab, "send:" + key);
+                        break;
+                    }
+                    case "dock": // double-click on the header: back beside Sidearm
+                        S.ravenPos = "";
+                        SaveSettingsSoon();
+                        ravenWin.ShowAt(RavenWindowBounds(), false);
                         break;
                     case "send":
                         if (!RavenReady) { ravenWin.Post(new { t = "error", text = Lang.T(RavenTitle + " isn't connected yet") }); break; }

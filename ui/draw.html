@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem('sidearm.theme')||'dark'}catch(e){}</script>
+<script src="look.js"></script>
+<script>try{if(localStorage.getItem('sidearm.lang')==='uk')document.write('<script src="lang/uk.js"><\/script>')}catch(e){}</script>
+<script src="i18n.js"></script>
+<title>Drawing</title>
+<link rel="stylesheet" href="sidearm.css">
+<link rel="stylesheet" href="draw.css">
+</head>
+<body class="draw">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-wing" viewBox="0 0 49 52"><path fill="currentColor" d="M19.9767 50.9765C30.1062 51.7595 43.0724 46.3271 48.0343 26.689C37.8531 23.9082 12.6427 12.0489 0.270828 0C-0.0203096 2.40424 -0.0492685 4.48545 0.0552561 6.22643C0.315037 10.5534 3.00547 14.1405 6.54663 16.6405C11.2753 19.9788 18.945 24.757 28.4015 28.3571C11.6717 24.1886 9.99749 23.6146 2.27084 18.9995C2.27084 19.4432 2.28943 19.88 2.32342 20.3077C2.76514 25.8675 7.18006 30.0705 12.4631 31.8582C17.657 33.6158 23.5875 34.8544 27.6436 35.4756C19.7708 37.4995 10.8353 34.644 6.83533 34.144C6.93729 34.6847 7.061 35.1997 7.20135 35.6891C8.67099 40.8134 14.173 43.1603 19.5037 43.1984C22.7664 43.2218 26.217 42.8508 30.2707 41.4996C23.7708 46.9994 17.7305 46.3334 13.2708 45.9994C13.8242 49.0819 16.8543 50.7352 19.9767 50.9765Z"/></symbol>
+  <symbol id="i-spark" viewBox="0 0 24 24"><path fill="currentColor" d="M12 0c.9 6.3 2.4 9.6 12 12-9.6 2.4-11.1 5.7-12 12-.9-6.3-2.4-9.6-12-12C9.6 9.6 11.1 6.3 12 0z"/></symbol>
+</svg>
+
+<header class="dw-top">
+  <input id="title" class="dw-title" data-raw maxlength="80" spellcheck="false" placeholder="Untitled drawing">
+  <span id="state" class="dw-state"></span>
+  <span class="dw-grow"></span>
+  <button id="undo" class="dw-ico" title="Undo (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+  <button id="redo" class="dw-ico" title="Redo (Ctrl+Y)" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+  <span class="dw-sep"></span>
+  <button id="save" class="dw-btn main" title="Keep it with your notes (Ctrl+S)">Save to notes</button>
+  <button id="copy" class="dw-btn" title="Copy the picture (Ctrl+C)">Copy</button>
+  <button id="file" class="dw-btn" title="Save as a PNG file (Ctrl+Shift+S)">Save file</button>
+  <button id="send" class="dw-btn" hidden title="Send it to a friend"><svg class="wing"><use href="#i-wing"/></svg><span>To a friend</span></button>
+  <button id="more" class="dw-ico" title="More"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg></button>
+</header>
+
+<aside class="dw-tools" id="tools">
+  <button class="dw-tool" data-tool="pen" title="Pen: thin and precise (P)"><img src="draw/pen.svg" alt=""><span class="key">P</span></button>
+  <button class="dw-tool" data-tool="brush" title="Brush: thicker when you go slow (B)"><img src="draw/brush.svg" alt=""><span class="key">B</span></button>
+  <button class="dw-tool" data-tool="marker" title="Highlighter (H)"><img src="draw/marker.svg" alt=""><span class="key">H</span></button>
+  <button class="dw-tool" data-tool="eraser" title="Eraser (E)"><img src="draw/eraser.svg" alt=""><span class="key">E</span></button>
+  <button class="dw-tool" data-tool="text" title="Text: click where it goes (T)"><span class="dw-T">T</span><span class="key">T</span></button>
+  <button class="dw-tool" data-tool="stamp" title="Stamps (S)"><img src="draw/stamp.svg" alt=""><span class="key">S</span></button>
+  <span class="sep"></span>
+  <button id="magic" class="dw-tool on" title="Magic: rough circles, boxes, triangles, lines and arrows come out neat (G). Hold Shift to keep a line as drawn"><svg><use href="#i-spark"/></svg></button>
+  <span class="sep"></span>
+  <div class="dw-sizes" id="sizes"></div>
+  <span class="sep"></span>
+  <div class="dw-colors" id="colors"></div>
+</aside>
+
+<main class="dw-stage" id="stage" tabindex="-1">
+  <div class="dw-wrap" id="wrap">
+    <div class="dw-sheet" id="sheet">
+      <img id="bg" alt="" hidden>
+      <canvas id="ink"></canvas>
+    </div>
+  </div>
+  <div class="dw-empty" id="empty" hidden><b>A clean sheet</b>Draw anything. Circles come out round, arrows come out straight.</div>
+</main>
+<canvas id="live"></canvas>
+
+<div class="dw-zoom">
+  <button id="zoomOut" title="Zoom out (Ctrl + wheel)">−</button>
+  <output id="zoomLevel">100%</output>
+  <button id="zoomIn" title="Zoom in (Ctrl + wheel)">+</button>
+  <button id="zoomFit" title="Fit (0)">Fit</button>
+</div>
+
+<div class="dw-toast" id="toast"></div>
+
+<script src="shapes.js"></script>
+<script src="picture.js"></script>
+<script src="draw.js"></script>
+</body>
+</html>

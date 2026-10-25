@@ -809,6 +809,8 @@
       pbtn('Pop out', function () { closePanel(); send({ type: 'page', op: 'popout' }); })));
     box.appendChild(prow('i-pop', 'Pop out page', 'Its own small window over the game, nothing reloads  ·  Alt+Shift+P',
       pbtn('Pop out', function () { closePanel(); send({ type: 'page', op: 'popPage' }); })));
+    box.appendChild(prow('i-shot', 'Screenshot', 'A part, what you see, or the whole page; then draw on it, copy or save  ·  Alt+S',
+      pbtn('Take', function () { closePanel(); send({ type: 'page', op: 'shot' }); })));
     box.appendChild(prow('i-book', 'Reader view', 'Just the article  ·  Alt+R',
       pbtn('Open', function () { send({ type: 'page', op: 'reader' }); closePanel(); })));
     box.appendChild(prow('i-fog', 'Clear fog', 'Overlays, blur, scroll locks  ·  Alt+F',

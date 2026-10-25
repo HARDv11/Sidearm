@@ -65,6 +65,15 @@ namespace Sidearm
         public string gestureUpDown { get; set; }
         public string gestureDownRight { get; set; }
         public string gestureDownLeft { get; set; }
+        // 0.9.5: shapes drawn with the right button held
+        public string gestureCircle { get; set; }      // ○ clockwise
+        public string gestureCircleBack { get; set; }  // ○ counter-clockwise
+        public string gestureSquare { get; set; }
+        public string gestureTriangle { get; set; }
+        public string gestureCheck { get; set; }       // ✓
+        public string gestureZ { get; set; }
+        public string gestureZigzag { get; set; }      // a wave: ⩘⩗ back and forth
+        public string myGestures { get; set; }         // your own: JSON [{ "name", "action", "pts": [[x,y]…] }]
         public string ghostHotkey { get; set; }    // see-through, click-through window
         public double ghostOpacity { get; set; }
         public bool muteByDefault { get; set; }
@@ -93,6 +102,13 @@ namespace Sidearm
         public string ravenHome { get; set; }      // unread on the start page: pinned (pinned friends first, else everyone), all, off
         public bool ravenTabs { get; set; }        // the side tabs outside the window for whoever wrote
         public string quickReplies { get; set; }   // up to 5, separated by |; "" = the language's defaults
+        public string ravenPos { get; set; }       // 0.9.5: where Raven's window was dragged to: "x,y"; "" = beside Sidearm
+        public string shotFolder { get; set; }     // 0.9.5: where "Save" puts screenshots and drawings; "" = Pictures\Sidearm
+        public string downloadFolder { get; set; } // 0.9.5: mass download; "" = Downloads\<site>
+        public string selectColor { get; set; }    // 0.9.5: the Alt + drag box; "" = your accent, else #rrggbb
+        public bool joystick { get; set; }         // 0.9.5: hold or click the middle button on a page for the scroll joystick
+        public int joystickSpeed { get; set; }     // 1-10
+        public string joystickKey { get; set; }    // "" = none, else a key that starts it where the pointer is (e.g. Alt+J)
         public string ravenServer { get; set; }    // the post office; "" = Sidearm's own (https://sidearm-post.hard11.workers.dev)
         public int defaultsVersion { get; set; }
         public int windowX { get; set; }
@@ -136,7 +152,9 @@ namespace Sidearm
             language = "en";
             gestures = true;
             gestureLeft = "back"; gestureRight = "forward"; gestureUp = "top"; gestureDown = "close";
-            gestureUpDown = "reload"; gestureDownRight = "zen"; gestureDownLeft = "zenPrivate";
+            gestureUpDown = "reload"; gestureDownRight = "home"; gestureDownLeft = "newTab";
+            gestureCircle = "shot"; gestureCircleBack = "draw"; gestureSquare = "popPage"; gestureTriangle = "reader";
+            gestureCheck = "send"; gestureZ = "ghost"; gestureZigzag = "mute"; myGestures = "";
             ghostHotkey = "Alt+G";
             ghostOpacity = 0.6;
             muteByDefault = true;
@@ -149,7 +167,8 @@ namespace Sidearm
             translateMode = "proxy";
             videoBounds = "";
             popsHide = false; pageBounds = "";
-            raven = false; ravenName = "raven"; callsign = ""; avatar = 0; ravenHome = "pinned"; ravenTabs = true; quickReplies = ""; ravenServer = "";
+            raven = false; ravenName = "raven"; callsign = ""; avatar = 0; ravenHome = "pinned"; ravenTabs = true; quickReplies = ""; ravenServer = ""; ravenPos = "";
+            shotFolder = ""; downloadFolder = ""; selectColor = ""; joystick = true; joystickSpeed = 5; joystickKey = "";
             preferDark = true;
             updateCheck = true; lastUpdateCheck = ""; snapEdges = true; youtubeAds = true;
             defaultsVersion = 0; // a file that lacks this key predates 0.2 and gets the new prefixes added
@@ -175,20 +194,55 @@ namespace Sidearm
             return b;
         }
 
-        const int CurrentDefaults = 6;
+        const int CurrentDefaults = 7;
 
         /// <summary>What a gesture can do. "off" turns that stroke off.</summary>
         public static readonly string[] GestureActions =
-            { "back", "forward", "close", "top", "bottom", "reload", "zen", "zenPrivate", "closeTab", "newTab", "reopen", "home", "off" };
+            { "back", "forward", "close", "top", "bottom", "reload", "zen", "zenPrivate", "closeTab", "newTab", "reopen", "home",
+              "popPage", "shot", "draw", "clips", "send", "raven", "ghost", "joystick", "mute", "reader", "translate", "off" };
 
-        /// <summary>Stroke (L, R, U, D, UD, DR, DL) to action, without the ones switched off.</summary>
+        /// <summary>Stroke (L, R, U, D, UD, DR, DL) or shape (@circle…) to action, without the ones switched off.</summary>
         public Dictionary<string, string> GestureMap()
         {
             var map = new Dictionary<string, string>();
             Action<string, string> add = (k, v) => { if (!string.IsNullOrEmpty(v) && v != "off") map[k] = v; };
             add("L", gestureLeft); add("R", gestureRight); add("U", gestureUp); add("D", gestureDown);
             add("UD", gestureUpDown); add("DR", gestureDownRight); add("DL", gestureDownLeft);
+            add("@circle", gestureCircle); add("@circleBack", gestureCircleBack); add("@square", gestureSquare);
+            add("@triangle", gestureTriangle); add("@check", gestureCheck); add("@z", gestureZ); add("@zigzag", gestureZigzag);
             return map;
+        }
+
+        /// <summary>Your own gestures, checked: at most 12, each a name, an action and 16-64 points.</summary>
+        public static string CleanMyGestures(string json)
+        {
+            var list = new List<Dictionary<string, object>>();
+            var arr = Json.ParseAny(json ?? "") as object[];
+            if (arr != null)
+                foreach (var o in arr)
+                {
+                    var d = o as Dictionary<string, object>;
+                    if (d == null || list.Count >= 12) continue;
+                    string name = CleanCallsign(Json.Str(d, "name"));
+                    string action = Json.Str(d, "action");
+                    if (name.Length == 0 || Array.IndexOf(GestureActions, action) < 0) continue;
+                    var pts = d.ContainsKey("pts") ? d["pts"] as object[] : null;
+                    if (pts == null || pts.Length < 16 || pts.Length > 64) continue;
+                    var clean = new List<double[]>();
+                    foreach (var p in pts)
+                    {
+                        var xy = p as object[];
+                        if (xy == null || xy.Length != 2) { clean = null; break; }
+                        double x, y;
+                        try { x = Convert.ToDouble(xy[0], System.Globalization.CultureInfo.InvariantCulture); y = Convert.ToDouble(xy[1], System.Globalization.CultureInfo.InvariantCulture); }
+                        catch (Exception) { clean = null; break; }
+                        if (double.IsNaN(x) || double.IsNaN(y) || Math.Abs(x) > 1000 || Math.Abs(y) > 1000) { clean = null; break; }
+                        clean.Add(new[] { Math.Round(x, 2), Math.Round(y, 2) });
+                    }
+                    if (clean == null) continue;
+                    list.Add(new Dictionary<string, object> { { "name", name }, { "action", action }, { "pts", clean } });
+                }
+            return list.Count == 0 ? "" : Json.Serialize(list);
         }
 
         static string ValidGesture(string v, string fallback)
@@ -283,6 +337,25 @@ namespace Sidearm
             s.gestureUpDown = ValidGesture(s.gestureUpDown, d.gestureUpDown);
             s.gestureDownRight = ValidGesture(s.gestureDownRight, d.gestureDownRight);
             s.gestureDownLeft = ValidGesture(s.gestureDownLeft, d.gestureDownLeft);
+            if (s.defaultsVersion < 7)
+            {
+                // 0.9.5: ↓← opens a new tab and ↓→ the start page, unless you'd changed them
+                if (s.gestureDownRight == "zen") s.gestureDownRight = "home";
+                if (s.gestureDownLeft == "zenPrivate") s.gestureDownLeft = "newTab";
+            }
+            s.gestureCircle = ValidGesture(s.gestureCircle, d.gestureCircle);
+            s.gestureCircleBack = ValidGesture(s.gestureCircleBack, d.gestureCircleBack);
+            s.gestureSquare = ValidGesture(s.gestureSquare, d.gestureSquare);
+            s.gestureTriangle = ValidGesture(s.gestureTriangle, d.gestureTriangle);
+            s.gestureCheck = ValidGesture(s.gestureCheck, d.gestureCheck);
+            s.gestureZ = ValidGesture(s.gestureZ, d.gestureZ);
+            s.gestureZigzag = ValidGesture(s.gestureZigzag, d.gestureZigzag);
+            s.myGestures = CleanMyGestures(s.myGestures);
+            if (s.shotFolder == null) s.shotFolder = "";
+            if (s.downloadFolder == null) s.downloadFolder = "";
+            if (!IsHex(s.selectColor)) s.selectColor = "";
+            s.joystickSpeed = Math.Max(1, Math.Min(10, s.joystickSpeed == 0 ? 5 : s.joystickSpeed));
+            if (Array.IndexOf(JoystickKeys, s.joystickKey) < 0) s.joystickKey = "";
             if (string.IsNullOrWhiteSpace(s.ghostHotkey)) s.ghostHotkey = d.ghostHotkey;
             if (s.ghostOpacity < 0.2 || s.ghostOpacity > 0.9) s.ghostOpacity = d.ghostOpacity;
             if (s.blocker != "ublock") s.blocker = "sidearm";
@@ -298,6 +371,7 @@ namespace Sidearm
             if (s.ravenHome != "all" && s.ravenHome != "off") s.ravenHome = "pinned";
             s.quickReplies = CleanReplies(s.quickReplies);
             if (s.ravenServer == null) s.ravenServer = "";
+            if (s.ravenPos == null) s.ravenPos = "";
             if (s.lastUpdateCheck == null) s.lastUpdateCheck = "";
             if (s.defaultsVersion < 2) AddV2Bangs(s.bangs);
             if (s.defaultsVersion < 3 && s.claudeOpenIn == "tab") s.claudeOpenIn = "app"; // 0.2.0 wrote "tab" by mistake
@@ -308,6 +382,8 @@ namespace Sidearm
             s.Save(); // writes defaults on first run and adds any new keys after an update
             return s;
         }
+
+        public static readonly string[] JoystickKeys = { "Alt+J", "Alt+Q", "CapsLock", "F2" };
 
         public static readonly string[] RavenNames = { "raven", "courier", "radio", "pigeon", "dispatch" };
 
@@ -355,7 +431,10 @@ namespace Sidearm
                 if (name.StartsWith("gesture", StringComparison.Ordinal) && p.PropertyType == typeof(string)
                     && Array.IndexOf(GestureActions, (string)v) < 0) return false;
                 if (name == "ghostOpacity") v = Math.Max(0.2, Math.Min(0.9, (double)v));
-                if ((name == "accent" || name == "accent2") && (string)v != "" && !IsHex((string)v)) return false;
+                if ((name == "accent" || name == "accent2" || name == "selectColor") && (string)v != "" && !IsHex((string)v)) return false;
+                if (name == "joystickSpeed") v = Math.Max(1, Math.Min(10, (int)v));
+                if (name == "myGestures") v = CleanMyGestures((string)v);
+                if (name == "joystickKey" && (string)v != "" && Array.IndexOf(JoystickKeys, (string)v) < 0) return false;
                 if ((name == "tint" || name == "grain") ) v = Math.Max(0, Math.Min(100, (int)v));
                 if (name == "sendTo" && Array.IndexOf(SendTargets, (string)v) < 0) return false;
                 if (name == "aiProvider" && Array.IndexOf(AiIds, (string)v) < 0) return false;

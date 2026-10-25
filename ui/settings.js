@@ -4,7 +4,7 @@
   var wv = window.chrome && window.chrome.webview ? window.chrome.webview : null;
   function send(m) { if (wv) wv.postMessage(m); }
   function $(id) { return document.getElementById(id); }
-  var S = {}, savedTimer = 0, ready = false;
+  var S = {}, savedTimer = 0, ready = false, lastSnapshot = null;
 
   function set(key, value) { send({ t: 'settings-set', key: key, value: value }); flashSaved(); }
   function action(name, extra) { var m = { t: 'settings-action', name: name }; for (var k in extra || {}) m[k] = extra[k]; send(m); }
@@ -96,6 +96,8 @@
       try { if (!localStorage.getItem('sidearm.theme')) localStorage.setItem('sidearm.theme', resolved); } catch (e) {}
     }
     renderRaven(m.raven || {});
+    lastSnapshot = m;
+    renderFolders(m);
     $('version').textContent = 'Sidearm ' + (m.version || '');
     renderSites(m.sites || {});
   }
@@ -117,7 +119,7 @@
       for (var i = 0; i < 5; i++) (function (n) {
         var b = el('button', 's-avatar');
         b.type = 'button';
-        b.title = T(['Planet', 'Cheese', 'Cake', 'Pyramid', 'Clouds (by soikach)'][n]);
+        b.title = T(['Planet', 'Cheese', 'Cake', 'Pyramid', 'Waves on the shore (by soikach)'][n]);
         var img = el('img'); img.alt = ''; img.src = 'avatars/' + n + '.webp';
         b.appendChild(img);
         b.addEventListener('click', function () { S.avatar = n; set('avatar', n); renderRaven(r); });
@@ -189,10 +191,33 @@
     ['gestureUpDown', '\u2191 \u2193'], ['gestureDownRight', '\u2193 \u2192'], ['gestureDownLeft', '\u2193 \u2190']];
   var ACTIONS = [['back', 'Back'], ['forward', 'Forward'], ['close', 'Close Glance, or holster'], ['top', 'Top of page'],
     ['bottom', 'Bottom of page'], ['reload', 'Reload'], ['zen', 'Open in your browser'], ['zenPrivate', 'Browser, private window'],
-    ['closeTab', 'Close tab'], ['newTab', 'New tab'], ['reopen', 'Reopen closed tab'], ['home', 'Start page'], ['off', 'Off']];
+    ['closeTab', 'Close tab'], ['newTab', 'New tab'], ['reopen', 'Reopen closed tab'], ['home', 'Start page'],
+    ['popPage', 'Pop out page'], ['shot', 'Screenshot'], ['draw', 'Blank sheet to draw on'], ['clips', 'Clipboard history'],
+    ['send', 'Send the page to a friend'], ['raven', 'Raven: all chats'], ['ghost', 'Ghost mode'], ['joystick', 'Scroll joystick'],
+    ['mute', 'Sound on / off'], ['reader', 'Reader view'], ['translate', 'Translate the page'], ['off', 'Off']];
+  var SHAPE_ROWS = [['gestureCircle', '\u21bb \u25cb'], ['gestureCircleBack', '\u21ba \u25cb'], ['gestureSquare', '\u25a1'], ['gestureTriangle', '\u25b3'],
+    ['gestureCheck', '\u2713'], ['gestureZ', 'Z'], ['gestureZigzag', '\u3030']];
   var gestBuilt = false;
+  function gestureRow(box, st) {
+    var row = el('div', 's-grow');
+    row.appendChild(el('span', 's-stroke', st[1]));
+    var sel = el('select');
+    sel.setAttribute('data-gesture', st[0]);
+    ACTIONS.forEach(function (a) { var o = el('option', null, a[1]); o.value = a[0]; sel.appendChild(o); });
+    sel.addEventListener('change', function () { S[st[0]] = sel.value; set(st[0], sel.value); });
+    row.appendChild(sel);
+    box.appendChild(row);
+  }
   function renderGestures() {
     var box = $('gestList');
+    if (!gestBuilt) {
+      SHAPE_ROWS.forEach(function (st) { gestureRow($('shapeList'), st); });
+      ACTIONS.forEach(function (a) { if (a[0] !== 'off') { var o = el('option', null, a[1]); o.value = a[0]; $('recAction').appendChild(o); } });
+      $('recAction').value = 'shot';
+    }
+    $('shapeList').classList.toggle('off', !S.gestures);
+    $('shapeList').querySelectorAll('select').forEach(function (sel) { if (document.activeElement !== sel) sel.value = S[sel.getAttribute('data-gesture')] || 'off'; });
+    renderMine();
     if (!gestBuilt) {
       gestBuilt = true;
       STROKES.forEach(function (st) {
@@ -211,6 +236,119 @@
       if (document.activeElement !== sel) sel.value = S[sel.getAttribute('data-gesture')] || 'off';
     });
   }
+
+  // ───────────── 0.9.5: your own gestures ─────────────
+
+  function mine() { try { var a = JSON.parse(S.myGestures || '[]'); return Array.isArray(a) ? a : []; } catch (e) { return []; } }
+  function saveMine(list) { S.myGestures = list.length ? JSON.stringify(list) : ''; set('myGestures', S.myGestures); renderMine(); }
+  function renderMine() {
+    var box = $('myGestures'), list = mine();
+    box.textContent = '';
+    if (!list.length) box.appendChild(el('p', 's-none', 'None yet.'));
+    list.forEach(function (g, i) {
+      var row = el('div', 's-grow s-mine-row');
+      var cv = el('canvas', 's-mine-pic'); cv.width = 104; cv.height = 64;
+      drawShape(cv, g.pts);
+      row.appendChild(cv);
+      var nm = el('b', null, g.name); nm.setAttribute('data-raw', ''); row.appendChild(nm);
+      var sel = el('select');
+      ACTIONS.forEach(function (a) { if (a[0] !== 'off') { var o = el('option', null, a[1]); o.value = a[0]; sel.appendChild(o); } });
+      sel.value = g.action;
+      sel.addEventListener('change', function () { var l = mine(); if (l[i]) { l[i].action = sel.value; saveMine(l); } });
+      row.appendChild(sel);
+      var del = el('button', 'pbtn', 'Delete');
+      del.addEventListener('click', function () { var l = mine(); l.splice(i, 1); saveMine(l); });
+      row.appendChild(del);
+      box.appendChild(row);
+    });
+    $('recBox').classList.toggle('off', list.length >= 12);
+  }
+  /** A gesture's 32 points, drawn small: where it starts is a dot. */
+  function drawShape(cv, pts) {
+    var g = cv.getContext('2d'), pad = 8;
+    var xs = pts.map(function (p) { return p[0]; }), ys = pts.map(function (p) { return p[1]; });
+    var x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs), y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
+    var k = Math.min((cv.width - 2 * pad) / ((x1 - x0) || 1), (cv.height - 2 * pad) / ((y1 - y0) || 1));
+    var ox = (cv.width - (x1 - x0) * k) / 2, oy = (cv.height - (y1 - y0) * k) / 2;
+    var acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d4a24c';
+    g.clearRect(0, 0, cv.width, cv.height);
+    g.strokeStyle = acc; g.lineWidth = 2.5; g.lineCap = g.lineJoin = 'round';
+    g.beginPath();
+    pts.forEach(function (p, i) { var x = ox + (p[0] - x0) * k, y = oy + (p[1] - y0) * k; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    g.stroke();
+    g.fillStyle = acc; g.beginPath(); g.arc(ox + (pts[0][0] - x0) * k, oy + (pts[0][1] - y0) * k, 4, 0, Math.PI * 2); g.fill();
+  }
+
+  // the recorder: three tries, averaged point by point once they agree
+  (function () {
+    var pad = $('recPad'), g = pad.getContext('2d'), tries = [], cur = null;
+    function clear() {
+      g.clearRect(0, 0, pad.width, pad.height);
+      g.fillStyle = 'rgba(127,127,127,.25)';
+      for (var x = 13; x < pad.width; x += 26) for (var y = 13; y < pad.height; y += 26) { g.beginPath(); g.arc(x, y, 1.2, 0, Math.PI * 2); g.fill(); }
+    }
+    function steps() {
+      $('recSteps').querySelectorAll('i').forEach(function (d, i) { d.classList.toggle('on', i < tries.length); });
+      $('recSave').disabled = tries.length < 3 || !$('recName').value.trim();
+      $('recHint').textContent = T(tries.length >= 3 ? 'Got it. Name it and pick what it does.' : tries.length ? 'Again: ' + (3 - tries.length) + ' more' : 'Draw it here with the left button, the way you\'ll draw it with the right.');
+    }
+    function pos(e) { var r = pad.getBoundingClientRect(); return [(e.clientX - r.left) * pad.width / r.width, (e.clientY - r.top) * pad.height / r.height]; }
+    pad.addEventListener('pointerdown', function (e) {
+      if (tries.length >= 3) return;
+      pad.setPointerCapture(e.pointerId); cur = [pos(e)]; clear();
+      var acc = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d4a24c';
+      g.strokeStyle = acc; g.lineWidth = 3.5; g.lineCap = g.lineJoin = 'round';
+    });
+    pad.addEventListener('pointermove', function (e) {
+      if (!cur) return;
+      var p = pos(e), l = cur[cur.length - 1];
+      cur.push(p); g.beginPath(); g.moveTo(l[0], l[1]); g.lineTo(p[0], p[1]); g.stroke();
+    });
+    pad.addEventListener('pointerup', function () {
+      if (!cur) return;
+      var pts = cur; cur = null;
+      var n = window.SidearmShapes ? SidearmShapes.normalize(pts) : null;
+      if (!n || pts.length < 8) { $('recHint').textContent = T('Too small. Draw it bigger'); return; }
+      // a try that's nothing like the first ones starts over
+      if (tries.length && avgDist(n, tries[0]) > 0.3) { tries = []; $('recHint').textContent = T('That one was different. Start again: three the same'); steps(); return; }
+      tries.push(n); steps();
+    });
+    function avgDist(a, b) { var d = 0; for (var i = 0; i < a.length; i++) d += Math.hypot(a[i][0] - b[i][0], a[i][1] - b[i][1]); return d / a.length; }
+    $('recName').addEventListener('input', steps);
+    $('recReset').addEventListener('click', function () { tries = []; clear(); steps(); });
+    $('recSave').addEventListener('click', function () {
+      if (tries.length < 3) return;
+      var avg = tries[0].map(function (p, i) { return [(p[0] + tries[1][i][0] + tries[2][i][0]) / 3, (p[1] + tries[1][i][1] + tries[2][i][1]) / 3]; })
+        .map(function (p) { return [Math.round(p[0] * 1000) / 1000, Math.round(p[1] * 1000) / 1000]; });
+      var list = mine().filter(function (x) { return x.name !== $('recName').value.trim(); });
+      list.push({ name: $('recName').value.trim().slice(0, 24), action: $('recAction').value, pts: avg });
+      saveMine(list.slice(-12));
+      tries = []; $('recName').value = ''; clear(); steps();
+    });
+    clear(); steps();
+  })();
+
+  // ───────────── 0.9.5: folders, the box's color ─────────────
+
+  function renderFolders(m) {
+    var f = m.folders || {};
+    $('shotFolder').textContent = f.shots || 'Pictures\\Sidearm';
+    $('dlFolder').textContent = f.downloads || 'Downloads\\<site>';
+    $('dlReset').hidden = !S.downloadFolder;
+    $('shotReset').hidden = !S.shotFolder;
+    $('drawCount').textContent = T(m.drawings ? (m.drawings === 1 ? '1 drawing kept with your notes, under Drawings on the start page.' : m.drawings + ' drawings kept with your notes, under Drawings on the start page.') : 'Kept with your notes, under Drawings on the start page.');
+    var c = S.selectColor || getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#d4a24c';
+    $('selSwatch').style.background = c;
+    if (document.activeElement !== $('selColor')) $('selColor').value = /^#[0-9a-f]{6}$/i.test(c) ? c : '#d4a24c';
+    $('selAccent').classList.toggle('accent', !S.selectColor);
+  }
+  $('shotPick').addEventListener('click', function () { action('pickShotFolder'); });
+  $('shotOpen').addEventListener('click', function () { action('openShotFolder'); });
+  $('shotReset').addEventListener('click', function () { action('resetShotFolder'); });
+  $('dlPick').addEventListener('click', function () { action('pickDownloadFolder'); });
+  $('dlReset').addEventListener('click', function () { action('resetDownloadFolder'); });
+  $('selAccent').addEventListener('click', function () { S.selectColor = ''; set('selectColor', ''); renderFolders(lastSnapshot || {}); });
+  $('selColor').addEventListener('change', function () { S.selectColor = $('selColor').value; set('selectColor', S.selectColor); renderFolders(lastSnapshot || {}); });
 
   // ───────────── simple controls ─────────────
 

@@ -8,6 +8,8 @@ ROOT=$PWD
 echo "== command bar (query.js)"
 node tests/query.test.js | tail -1
 node tests/money-timer.test.js | tail -1
+echo "== shapes (gestures, the magic pen)"
+node tests/shapes.test.js | tail -1
 
 [ -f build/Sidearm/Sidearm.exe ] || ./build.sh >/dev/null
 W=$(mktemp -d)
@@ -15,7 +17,7 @@ cp build/Sidearm/Sidearm.exe build/Sidearm/*.dll "$W"/
 echo "== clean links"
 mcs -nologo src/CleanLinks.cs tests/shell/CleanLinksTest.cs -out:"$W/CleanLinksTest.exe" 2>&1 | grep -v warning || true
 mono "$W/CleanLinksTest.exe" | tail -1
-for t in TranslateUrlTest LangTest ShellTest MigrateTest UpdaterTest RavenTest; do
+for t in TranslateUrlTest LangTest ShellTest MigrateTest UpdaterTest RavenTest DrawTest; do
   mcs -nologo -r:"$W/Sidearm.exe" -r:System.Core.dll -r:System.Drawing.dll -r:System.IO.Compression.dll -r:System.IO.Compression.FileSystem.dll -r:System.Web.Extensions.dll \
     tests/shell/$t.cs -out:"$W/$t.exe" 2>&1 | grep -v warning || true
 done
@@ -32,6 +34,8 @@ echo "== updates (check, unpack, swap, roll back)"
 mono UpdaterTest.exe
 echo "== Raven's files and settings"
 mono RavenTest.exe | tail -1
+echo "== drawings, pictures, gestures and the joystick (0.9.5)"
+mono DrawTest.exe | tail -1
 cd "$ROOT"
 # Raven end to end needs the post office: a local one from server/ (wrangler dev), if it can start
 echo "== Raven end to end (local post office)"
@@ -52,7 +56,10 @@ if [ "$1" = "ui" ]; then
   node tests/ui/raven-ui-test.js en | grep '"errors"'
   node tests/ui/raven-ui-test.js uk | grep '"errors"'
   node tests/ui/raven-ui-test.js en light | grep '"errors"'
+  node tests/ui/draw-ui-test.js en | grep '"errors"'
+  node tests/ui/draw-ui-test.js uk light | grep '"errors"'
   kill "$(cat "$W/http.pid")" 2>/dev/null || true
 fi
-[ -f "$W/wrangler.pid" ] && kill "$(cat "$W/wrangler.pid")" 2>/dev/null
-rm -rf "$W"
+[ -f "$W/wrangler.pid" ] && { kill "$(cat "$W/wrangler.pid")" 2>/dev/null || true; }
+rm -rf "$W" 2>/dev/null || true
+echo "== done"

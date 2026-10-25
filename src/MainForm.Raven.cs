@@ -195,12 +195,24 @@ namespace Sidearm
                 Log.Info(RavenLog("a friend accepted"));
                 Toast(f.Shown + " is your friend now", null, null);
             }
+            string pic = "";
+            if (kind == "pic")
+            {
+                // 0.9.5: a picture: kept as a file, the history only names it
+                string id = Json.Str(m, "id");
+                if (raven.FindMsg(from, id) != null) return;
+                var bytes = DrawStore.FromDataUrl(Json.Str(b, "img"), "image/webp", "image/jpeg", "image/png");
+                pic = bytes != null && RavenStore.IsPicName(id + ".webp") ? raven.SavePic(id, bytes) ?? "" : "";
+                if (pic.Length == 0) { Log.Info(RavenLog("a picture came that couldn't be read")); return; }
+                kind = "msg";
+            }
             if (kind == "msg")
             {
                 var msg = raven.Add(from, new RavenStore.Msg
                 {
                     id = Json.Str(m, "id"), at = (long)Json.Num(m, "at", NowMs()), mine = false,
-                    text = Json.Str(b, "text") ?? "", url = Json.Str(b, "url") ?? "", title = Json.Str(b, "title") ?? ""
+                    text = Json.Str(b, "text") ?? "", url = Json.Str(b, "url") ?? "", title = Json.Str(b, "title") ?? "",
+                    pic = pic, w = (int)Json.Num(b, "w", 0), h = (int)Json.Num(b, "h", 0)
                 });
                 if (msg != null)
                 {
@@ -296,6 +308,44 @@ namespace Sidearm
                 string why = ex.Message;
                 Log.Info(RavenLog("send failed: " + why));
                 Toast(why == "slow down" ? "Too many messages at once. Wait a minute" : why == "not a friend" ? f.Shown + " hasn't added you back yet" : "Couldn't send: " + why, null, null);
+            }
+            RavenChanged(false, true);
+            return msg;
+        }
+
+        /// <summary>0.9.5: a picture to a friend (a screenshot, a drawing, something pasted), already squeezed by the page.</summary>
+        async Task<RavenStore.Msg> RavenSendPic(string key, byte[] data, int w, int h, string text)
+        {
+            var f = raven != null ? raven.Find(key) : null;
+            if (!RavenReady) { Toast(RavenTitle + " isn't connected yet", null, null); return null; }
+            if (f == null || f.status == "request") throw new InvalidOperationException("not a friend");
+            string ext = RavenStore.PicExt(data);
+            if (ext == null) throw new InvalidOperationException("not a picture");
+            if (data.Length > 240 * 1024) throw new InvalidOperationException("picture too big");
+            text = (text ?? "").Trim();
+            if (text.Length > 2000) text = text.Substring(0, 2000);
+            string id = NewMsgId();
+            string name = raven.SavePic(id, data);
+            if (name == null) throw new InvalidOperationException("couldn't keep the picture");
+            var msg = raven.Add(key, new RavenStore.Msg { id = id, mine = true, at = NowMs(), text = text, pic = name, w = w, h = h, state = "sending" });
+            f.unread = 0;
+            RavenChanged(true, true);
+            try
+            {
+                string mime = ext == "jpg" ? "image/jpeg" : "image/" + ext;
+                var r = await RavenCall("send", new Dictionary<string, object>
+                {
+                    { "to", key }, { "id", id },
+                    { "body", new Dictionary<string, object> { { "t", "pic" }, { "text", text }, { "img", "data:" + mime + ";base64," + Convert.ToBase64String(data) }, { "w", w }, { "h", h }, { "name", S.callsign ?? "" }, { "av", S.avatar } } }
+                }, 60000);
+                msg.state = Json.Bool(r, "delivered") ? "delivered" : "sent";
+                Log.Info(RavenLog("sent a picture (" + (data.Length / 1024) + " KB)"));
+            }
+            catch (Exception ex)
+            {
+                msg.state = "failed";
+                Log.Info(RavenLog("picture failed: " + ex.Message));
+                Toast(ex.Message == "slow down" ? "That's a lot of pictures today. Try again tomorrow" : "Couldn't send the picture: " + ex.Message, null, null);
             }
             RavenChanged(false, true);
             return msg;
@@ -401,6 +451,7 @@ namespace Sidearm
             if (m == null) return "";
             string t = (m.text ?? "").Replace('\n', ' ').Trim();
             if (t.Length == 0 && m.url.Length > 0) t = m.title.Length > 0 ? m.title : HostOf(m.url);
+            if (!string.IsNullOrEmpty(m.pic)) t = "📷 " + (t.Length > 0 ? t : Lang.T("Picture"));
             return Trim(t, 120);
         }
 
@@ -422,7 +473,7 @@ namespace Sidearm
 
         List<object> RavenChatView(string key)
         {
-            return raven.History(key).Select(m => (object)new { id = m.id, mine = m.mine, text = m.text, url = m.url, title = m.title, at = m.at, state = m.state }).ToList();
+            return raven.History(key).Select(m => (object)new { id = m.id, mine = m.mine, text = m.text, url = m.url, title = m.title, at = m.at, state = m.state, pic = m.pic ?? "", w = m.w, h = m.h }).ToList();
         }
 
         /// <summary>The start page's block: unread from pinned friends first; nobody pinned has written → everyone.</summary>

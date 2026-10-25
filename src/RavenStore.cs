@@ -31,6 +31,8 @@ namespace Sidearm
             public bool mine;
             public long at;
             public string state = "";        // mine: sending · sent · delivered · failed
+            public string pic = "";          // 0.9.5: a picture, as its file in data\raven\pics
+            public int w, h;
         }
 
         public const int KeepPerFriend = 200, MaxFriends = 64;
@@ -93,7 +95,8 @@ namespace Sidearm
                                     list.Add(new Msg
                                     {
                                         id = Json.Str(m, "id"), text = Json.Str(m, "text") ?? "", url = Json.Str(m, "url") ?? "", title = Json.Str(m, "title") ?? "",
-                                        mine = Json.Bool(m, "mine"), at = (long)Json.Num(m, "at", 0), state = Json.Str(m, "state") ?? ""
+                                        mine = Json.Bool(m, "mine"), at = (long)Json.Num(m, "at", 0), state = Json.Str(m, "state") ?? "",
+                                        pic = IsPicName(Json.Str(m, "pic")) ? Json.Str(m, "pic") : "", w = (int)Json.Num(m, "w", 0), h = (int)Json.Num(m, "h", 0)
                                     });
                                 }
                             history[kv.Key] = list;
@@ -142,7 +145,11 @@ namespace Sidearm
             if (!history.TryGetValue(key, out list)) history[key] = list = new List<Msg>();
             if (list.Any(x => x.id == m.id)) return null; // already have it
             list.Add(m);
-            if (list.Count > KeepPerFriend) list.RemoveRange(0, list.Count - KeepPerFriend);
+            if (list.Count > KeepPerFriend)
+            {
+                foreach (var old in list.Take(list.Count - KeepPerFriend)) DeletePic(old.pic);
+                list.RemoveRange(0, list.Count - KeepPerFriend);
+            }
             var f = Find(key);
             if (f != null) f.lastAt = Math.Max(f.lastAt, m.at);
             return m;
@@ -153,7 +160,56 @@ namespace Sidearm
         public void Forget(string key)
         {
             Friends.RemoveAll(f => f.key == key);
+            List<Msg> list;
+            if (history.TryGetValue(key, out list)) foreach (var m in list) DeletePic(m.pic);
             history.Remove(key);
+        }
+
+        // ── 0.9.5: pictures, one file each (the history keeps only the name) ──
+
+        public string PicDir { get { return Path.Combine(dir, "pics"); } }
+
+        public static bool IsPicName(string n) { return n != null && System.Text.RegularExpressions.Regex.IsMatch(n, @"^[A-Za-z0-9_-]{16,64}\.(webp|jpg|png)$"); }
+
+        public static string PicExt(byte[] b)
+        {
+            if (b == null || b.Length < 12) return null;
+            if (b[0] == 'R' && b[1] == 'I' && b[2] == 'F' && b[3] == 'F' && b[8] == 'W' && b[9] == 'E' && b[10] == 'B' && b[11] == 'P') return "webp";
+            if (b[0] == 0xFF && b[1] == 0xD8) return "jpg";
+            if (b[0] == 0x89 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G') return "png";
+            return null;
+        }
+
+        /// <summary>Keeps a picture; the name comes from the message id. Null if it isn't a picture we show.</summary>
+        public string SavePic(string msgId, byte[] data)
+        {
+            string ext = PicExt(data);
+            string name = msgId + "." + ext;
+            if (ext == null || !IsPicName(name) || data.Length > 2 * 1024 * 1024) return null;
+            try
+            {
+                Directory.CreateDirectory(PicDir);
+                File.WriteAllBytes(Path.Combine(PicDir, name), data);
+                return name;
+            }
+            catch (Exception ex) { Log.Error("Raven: save picture", ex); return null; }
+        }
+
+        public string PicDataUrl(string name)
+        {
+            if (!IsPicName(name)) return null;
+            string p = Path.Combine(PicDir, name);
+            if (!File.Exists(p)) return null;
+            string ext = Path.GetExtension(name).TrimStart('.');
+            return "data:image/" + (ext == "jpg" ? "jpeg" : ext) + ";base64," + Convert.ToBase64String(File.ReadAllBytes(p));
+        }
+
+        public string PicPath(string name) { return IsPicName(name) ? Path.Combine(PicDir, name) : null; }
+
+        void DeletePic(string name)
+        {
+            if (!IsPicName(name)) return;
+            try { File.Delete(Path.Combine(PicDir, name)); } catch (Exception) { }
         }
 
         public void SaveIdentity(Dictionary<string, object> id)
@@ -178,6 +234,7 @@ namespace Sidearm
             Friends.Clear();
             history.Clear();
             foreach (var p in new[] { IdPath, FriendsPath, HistoryPath }) try { if (File.Exists(p)) File.Delete(p); } catch (Exception) { }
+            try { if (Directory.Exists(PicDir)) Directory.Delete(PicDir, true); } catch (Exception) { }
         }
 
         void Write(string path, string text)

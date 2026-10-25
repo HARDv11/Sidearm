@@ -64,6 +64,16 @@ class U {
     up.GetMethod("Confirm", BF).Invoke(null, null);
     Ok(!File.Exists(Path.Combine(app, "Sidearm.exe.old")) && !File.Exists(Path.Combine(data, "update", "pending.json")), "confirmed: .old files and pending gone");
     Ok(File.ReadAllText(Path.Combine(app, "Sidearm.exe")) == "new exe", "new version stays");
+    // 0.9.5: quitting on purpose isn't a failed start
+    File.WriteAllText(Path.Combine(app, "Sidearm.exe"), "old exe");
+    Zip(z1, files); got = (string)unpack.Invoke(null, new object[] { z1, Sha(z1), un });
+    up.GetMethod("Apply", BF).Invoke(null, new object[] { got });
+    var cleanExit = up.GetMethod("CleanExit", BF);
+    for (int i = 0; i < 4; i++) { Ok(!(bool)onStart.Invoke(null, null), "start " + (i + 1) + " after update, quit before the engine started"); cleanExit.Invoke(null, new object[] { false }); }
+    Ok(File.Exists(Path.Combine(data, "update", "pending.json")) && File.ReadAllText(Path.Combine(app, "Sidearm.exe")) == "new exe", "four quick quits: no rollback, still pending");
+    Ok(!(bool)onStart.Invoke(null, null), "and the next start carries on");
+    cleanExit.Invoke(null, new object[] { true });
+    Ok(!File.Exists(Path.Combine(data, "update", "pending.json")) && !File.Exists(Path.Combine(app, "Sidearm.exe.old")), "a clean quit after the engine started confirms the update");
     Console.WriteLine(fail == 0 ? "ALL PASSED" : fail + " FAILED");
   }
 }

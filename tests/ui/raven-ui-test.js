@@ -25,8 +25,10 @@ const chat = { t: 'chat', key: K('a'), msgs: [
   { id: '1', mine: false, text: 'Ти вже бачив новий патч?', at: now - 3600000, state: '' },
   { id: '2', mine: true, text: 'Ні, кинь посилання', at: now - 3500000, state: 'delivered' },
   { id: '3', mine: false, text: 'Ось, там і банер', url: 'https://www.hoyolab.com/article/123', title: 'Нотатки до оновлення 5.2', at: now - 60000, state: '' },
-  { id: '4', mine: true, text: 'Дякую! Гляну після рейду', at: now - 30000, state: 'sent' }
+  { id: '4', mine: true, text: 'Дякую! Гляну після рейду', at: now - 30000, state: 'sent' },
+  { id: '5', mine: false, text: 'А ось де бос', pic: 'AbCdEfGhIjKlMnOpQrSt.webp', w: 1100, h: 700, at: now - 10000, state: '' }
 ] };
+const PIC = 'data:image/webp;base64,' + fs.readFileSync(require('path').join(__dirname, '..', '..', 'ui', 'avatars', '1.webp')).toString('base64');
 const results = {};
 (async () => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || '/opt/pw-browsers/chromium', args: ['--headless=new'] });
@@ -40,6 +42,7 @@ const results = {};
   await r.addInitScript(stub);
   await r.goto(BASE + 'raven.html');
   await r.evaluate(([s, c]) => { window.__deliver(s); window.__deliver(c); }, [state, chat]);
+  await r.evaluate(p => window.__deliver({ t: 'pic', name: 'AbCdEfGhIjKlMnOpQrSt.webp', data: p }), PIC);
   for (const [mode, key, extra] of [['chat', K('a')], ['list'], ['add'], ['review', K('e')], ['pick', null, { url: 'https://act.hoyolab.com/ys/app/interactive-map/', title: 'Teyvat Interactive Map' }]]) {
     await r.evaluate(m => window.__deliver(m), { t: 'show', mode, key: key || null, page: extra || null });
     if (mode === 'add') await r.evaluate(() => window.__deliver({ t: 'invite', code: 'SA1AQSmF5eZVq0yL8dYb7x9cZQ2lk3W4m5N6o7P8q9R0sT1uV2wX3yZ4a5B6c7D8e9F0g1H2i3J4k5L6m7N8o9P0qBASmF5eZVq0yL8dYb7x9cZQ2lk3W4m5N6o7P8q9R0sT1uV2wX3yZ4a5B6c7D8e9F0g1H2i3J4k5L6m7N8o9P0qRstUvWxYz0123456789ab', expires: Date.now() + 86400000 }));
@@ -62,6 +65,11 @@ const results = {};
   await r.click('.rv-attach');
   await r.click('.rv-send');
   results.sent = await r.evaluate(() => window.__posted.filter(m => m.t === 'send').slice(-1)[0]);
+  results.picShown = await r.evaluate(() => { const i = document.querySelector('.rv-pic img'); return !!i && i.src.startsWith('data:image/webp'); });
+  await r.click('.rv-cam');
+  results.camera = await r.evaluate(() => window.__posted.filter(m => m.t === 'shot').slice(-1)[0]);
+  await r.click('.rv-pic');
+  results.picOpen = await r.evaluate(() => window.__posted.filter(m => m.t === 'picOpen').slice(-1)[0]);
   // the quick-reply card
   const peek = await ctx.newPage(); peek.on('pageerror', e => errors.push('peek: ' + e.message));
   await peek.setViewportSize({ width: 320, height: 260 });
@@ -85,8 +93,17 @@ const results = {};
   });
   await n.evaluate(h => window.__deliver({ t: 'raven-home', raven: h }), { on: true, title: state.title, requests: 1, total: 3,
     list: [{ key: K('a'), name: 'Оля', av: 4, unread: 2, at: now - 60000, text: 'Ось, там і банер', url: 'https://www.hoyolab.com/article/1' }, { key: K('b'), name: 'Сашко', av: 1, unread: 1, at: now - 600000, text: 'Гоу в рейд о 21:00?', url: '' }] });
+  // 0.9.5: drawings under the notes
+  await n.evaluate(p => window.__deliver({ t: 'drawings', total: 14, list: [
+    { id: '20261025-120000-aaaaaa', title: 'Бос у печері', updated: Date.now() - 60000, shot: true, thumb: p },
+    { id: '20261025-110000-bbbbbb', title: '', updated: Date.now() - 3600000, shot: false, thumb: p },
+    { id: '20261024-200000-cccccc', title: 'Маршрут на Хеллдайверс', updated: Date.now() - 86400000, shot: true, thumb: '' }] }), PIC);
   await n.waitForTimeout(250);
   await n.screenshot({ path: OUT + 'raven-home-' + tag + '.png' });
+  await n.evaluate(() => document.getElementById('drawings').scrollIntoView({ block: 'center' }));
+  await n.screenshot({ path: OUT + 'drawings-home-' + tag + '.png' });
+  await n.click('.dr-tile:nth-child(2)');
+  results.drawOpen = await n.evaluate(() => window.__posted.filter(m => m.t === 'drawings-open').slice(-1)[0]);
   await n.click('.rvh-row');
   results.homeOpen = await n.evaluate(() => window.__posted.filter(m => m.t === 'raven-open').slice(-1)[0]);
 

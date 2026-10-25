@@ -14,6 +14,8 @@
 (function (root) {
   'use strict';
   var VERSION = 1;
+  // 0.9.5: pictures. The picture itself (base64) and the whole sealed message, in characters.
+  var PIC_CHARS = 330000, MAX_CT_PIC = 471040;
   var subtle = (root.crypto || globalThis.crypto).subtle;
   var te = new TextEncoder(), td = new TextDecoder();
 
@@ -156,7 +158,7 @@
     var WS = opts.WebSocket || root.WebSocket || globalThis.WebSocket;
     var doFetch = opts.fetch || (root.fetch ? root.fetch.bind(root) : globalThis.fetch);
     var me = null, friends = {}, ws = null, stopped = true, skew = 0;
-    var retry = 0, retryTimer = 0, pingTimer = 0, pongTimer = 0, seen = {}, seenOrder = [];
+    var retry = 0, retryTimer = 0, pingTimer = 0, pongTimer = 0, seen = {}, seenOrder = [], fetching = {};
 
     function log(t) { emit({ op: 'log', text: t }); }
     function now() { return Date.now() + skew; }
@@ -242,6 +244,7 @@
         if (m.t === 'hello') { retry = 0; emit({ op: 'online', on: true }); }
         (m.list || []).forEach(handle);
       } else if (m.t === 'msg' && m.msg) handle(m.msg);
+      else if (m.t === 'one' && m.msg) { delete fetching[m.msg.id]; handle(m.msg); }
       ping();
     }
 
@@ -259,10 +262,18 @@
     /** One message from the inbox: open it, tell the shell, then let the post office forget it. */
     function handle(msg) {
       if (!msg || typeof msg.id !== 'string' || seen[msg.id]) return;
+      // 0.9.5: a picture comes without its contents in the list; it's fetched on its own
+      if (msg.kind === 'pic' && !msg.ct) { fetchOne(msg.id); return; }
       remember(msg.id);
       var p = msg.kind === 'request' ? openRequest(msg) : openMessage(msg);
       p.then(function (ev) { if (ev) emit(ev); }, function (e) { log('dropped a message from ' + String(msg.from).slice(0, 8) + '…: ' + e.message); })
         .then(function () { ack([msg.id]); });
+    }
+
+    function fetchOne(id) {
+      if (fetching[id] && Date.now() - fetching[id] < 30000) return;
+      fetching[id] = Date.now();
+      if (ws && ws.readyState === 1) try { ws.send(JSON.stringify({ t: 'get', id: id })); } catch (e) {}
     }
 
     function openMessage(msg) {
@@ -291,11 +302,22 @@
       var s = function (v, n) { return typeof v === 'string' ? v.slice(0, n) : ''; };
       var url = s(b.url, 2000);
       if (url && !/^https?:\/\//i.test(url)) url = '';
-      return {
-        t: ['msg', 'hello', 'bye'].indexOf(b.t) >= 0 ? b.t : 'msg',
+      var out = {
+        t: ['msg', 'hello', 'bye', 'pic'].indexOf(b.t) >= 0 ? b.t : 'msg',
         text: s(b.text, 4000), url: url, title: s(b.title, 200),
         name: s(b.name, 24), av: typeof b.av === 'number' && b.av >= 0 && b.av <= 4 ? Math.floor(b.av) : 0
       };
+      if (out.t === 'pic') {
+        // a picture: WebP, JPEG or PNG only, as base64, and not bigger than the post office lets through
+        var img = typeof b.img === 'string' ? b.img : '';
+        if (img.length > PIC_CHARS + 40 || !/^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+\/]+=*$/.test(img)) { out.t = 'msg'; out.text = out.text || ''; }
+        else {
+          out.img = img;
+          var n = function (v) { return typeof v === 'number' && v > 0 && v < 20000 ? Math.floor(v) : 0; };
+          out.w = n(b.w); out.h = n(b.h);
+        }
+      }
+      return out;
     }
 
     // ── what the shell asks for ──
@@ -376,16 +398,18 @@
         });
       },
 
-      /** A message to a friend: body { t, text, url, title, name, av }. */
+      /** A message to a friend: body { t, text, url, title, name, av }; a picture: t "pic" with img (a data URL), w, h. */
       send: function (to, body, id) {
         var f = friends[to];
         if (!f) return Promise.reject(new Error('not a friend'));
         id = id || newId();
+        var pic = body && body.t === 'pic';
+        if (pic && (typeof body.img !== 'string' || body.img.length > PIC_CHARS)) return Promise.reject(new Error('picture too big'));
         return inboxOf(to).then(function (inbox) {
           return friendAes(f).then(function (aes) { return seal(aes, body, me.key + '>' + to + '|' + id); })
             .then(function (ct) {
-              if (ct.length > 8192) throw new Error('too long');
-              return call('POST', '/v1/inbox/' + inbox + '/send', { id: id, ct: ct });
+              if (ct.length > (pic ? MAX_CT_PIC : 8192)) throw new Error(pic ? 'picture too big' : 'too long');
+              return call('POST', '/v1/inbox/' + inbox + '/send', pic ? { id: id, ct: ct, pic: true } : { id: id, ct: ct });
             })
             .then(function (r) {
               if (r.status !== 200) { var e = new Error(r.body.error || ('send ' + r.status)); e.status = r.status; throw e; }
@@ -400,7 +424,7 @@
     return api;
   }
 
-  var exported = { create: create, words: words, parseCode: parseCode, newIdentity: newIdentity, inboxOf: inboxOf, newId: newId,
+  var exported = { create: create, words: words, parseCode: parseCode, newIdentity: newIdentity, inboxOf: inboxOf, newId: newId, PIC_CHARS: PIC_CHARS,
     WORDS_EN: WORDS_EN, WORDS_UK: WORDS_UK, VERSION: VERSION };
   if (typeof module !== 'undefined' && module.exports) module.exports = exported;
   else root.SidearmRaven = exported;

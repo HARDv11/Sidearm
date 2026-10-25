@@ -34,6 +34,10 @@
         <span class="notes-state" id="notesState"></span>
       </div>
       <textarea id="notes" spellcheck="true" rows="4" placeholder="Builds, codes, what to buy next… It saves by itself."></textarea>
+      <div class="drawings" id="drawings">
+        <div class="dr-head"><h3>Drawings</h3><span class="notes-hint"><kbd>Alt + S</kbd> a screenshot to mark up</span><button type="button" class="dr-all" id="drAll" hidden>All</button></div>
+        <div class="dr-row" id="drRow"></div>
+      </div>
     </div>
   </section>
 
@@ -204,6 +208,31 @@
   }
   wv.addEventListener('message', function (e) { if (e.data && e.data.t === 'raven-home') renderRaven(e.data.raven); });
 
+  // 0.9.5: drawings and marked-up screenshots, kept with the notes (data\notes\drawings)
+  var drRow = document.getElementById('drRow'), drAll = document.getElementById('drAll'), drShowAll = false;
+  function renderDrawings(list, total) {
+    drRow.textContent = '';
+    var add = el('button', 'dr-tile dr-new'); add.type = 'button'; add.title = T('A blank sheet');
+    add.innerHTML = '<span>+</span>';
+    add.appendChild(el('small', null, 'New drawing'));
+    add.addEventListener('click', function () { post({ t: 'drawings-open', id: null }); });
+    drRow.appendChild(add);
+    (list || []).forEach(function (d) {
+      var b = el('button', 'dr-tile'); b.type = 'button';
+      if (d.thumb) b.style.backgroundImage = 'url("' + d.thumb + '")';
+      var cap = el('span', 'dr-cap', d.title || hm(d.updated)); cap.dataset.raw = '';
+      b.title = (d.title ? d.title + ' · ' : '') + new Date(d.updated).toLocaleString();
+      b.appendChild(cap);
+      if (d.shot) b.appendChild(el('i', 'dr-shot'));
+      b.addEventListener('click', function () { post({ t: 'drawings-open', id: d.id }); });
+      drRow.appendChild(b);
+    });
+    drAll.hidden = !(total > (list || []).length) && !drShowAll;
+    drAll.textContent = drShowAll ? T('Fewer') : T('All') + ' · ' + total;
+  }
+  drAll.addEventListener('click', function () { drShowAll = !drShowAll; post({ t: 'drawings-get', all: drShowAll }); });
+  wv.addEventListener('message', function (e) { if (e.data && e.data.t === 'drawings') renderDrawings(e.data.list, e.data.total); });
+
   function reveal() { if (!got) { got = true; dock.hidden = false; fit(); } }
   post({ t: 'home-get' });
 })();
@@ -224,11 +253,14 @@
   var QK = 'Alt+Space';
   try { QK = localStorage.getItem('sidearm.quickkey'); if (QK == null) QK = 'Alt+Space'; } catch (e) {}
   QK = QK ? QK.split('+').join(' + ') : '';
-  var gest = { L: 'back', R: 'forward', U: 'top', D: 'close', UD: 'reload', DR: 'zen', DL: 'zenPrivate' };
+  var gest = { L: 'back', R: 'forward', U: 'top', D: 'close', UD: 'reload', DR: 'home', DL: 'newTab', '@circle': 'shot', '@circleBack': 'draw', '@square': 'popPage', '@triangle': 'reader', '@check': 'send', '@z': 'ghost', '@zigzag': 'mute' };
   try { var gs = localStorage.getItem('sidearm.gestures'); if (gs) gest = JSON.parse(gs); } catch (e) {}
   var GNAME = { back: 'Back', forward: 'Forward', close: 'Close the Glance, or holster', top: 'Top of the page', bottom: 'Bottom of the page',
     reload: 'Reload', zen: 'Open this page in ' + BR, zenPrivate: 'Open it in a private ' + BR + ' window', closeTab: 'Close the tab',
-    newTab: 'New tab', reopen: 'Reopen the last closed tab', home: 'This start page' };
+    newTab: 'New tab', reopen: 'Reopen the last closed tab', home: 'This start page',
+    popPage: 'Pop out the page', shot: 'Screenshot', draw: 'A blank sheet to draw on', clips: 'What you copied (Alt + V)', send: 'Send the page to a friend',
+    raven: 'Raven: all chats', ghost: 'Ghost mode', joystick: 'The scroll joystick, right there', mute: 'Sound on or off', reader: 'Reader view', translate: 'Translate the page' };
+  var SHAPES = { '@circle': '○ clockwise', '@circleBack': '○ counter-clockwise', '@square': '□ a square', '@triangle': '△ a triangle', '@check': '✓ a tick', '@z': 'Z', '@zigzag': '〰 a zigzag' };
   var ARROWS = { L: '\u2190', R: '\u2192', U: '\u2191', D: '\u2193' };
 
   // [keys, what it does]. "|" separates alternative keys.
@@ -304,9 +336,9 @@
       ['Alt + R', 'Reader view: just the article (A−/A+, themes, Esc closes)'],
       ['Alt + F', 'Clear fog: overlays, "subscribe" walls, blur, scroll locks'],
       ['Alt + P|Shield → Pop out|right-click a video', 'Pop out the video: its own small always-on-top window that stays up while you play'],
-      ['Right-click the pop-out\'s title', 'Its opacity'],
       ['Alt + Shift + P|Shield → Pop out page|right-click a page', 'Pop out the page: its own small window over the game; nothing reloads, a map keeps its place'],
-      ['Right-click a pop-out page\'s title → Back to Sidearm|Alt + Shift + P in it', 'Back into Sidearm as a tab (Ctrl + W in it closes it)'],
+      ['A pop-out\'s strip', 'Drag to move · ↩ back into Sidearm · ghost · × · the wheel sets its opacity · right-click for the menu'],
+      ['Alt + Shift + P in a pop-out page', 'Back into Sidearm as a tab (Ctrl + W in it closes it)'],
       [GK + ' with pop-outs up', 'They go see-through together with Sidearm (holstered: just the pop-outs)'],
       ['Settings → General → Pop-outs hide with Sidearm', 'They go away when you holster and come back when you draw'],
       ['Settings → Pages → Blocker', 'uBlock Origin Lite instead of Sidearm\'s own lists (experimental)'],
@@ -332,7 +364,27 @@
       ['@name text', 'Sends it from the bar with the page you\'re on; Shift + Enter sends the text only; Tab picks another friend'],
       ['Right-click a page|a link|Glance\'s wing', 'Send it to a friend'],
       ['The card that pops up', 'A quick reply: a ready answer, or type and press Enter'],
-      ['☆ in a chat', 'Pin a friend: their messages come first on this page']
+      ['☆ in a chat', 'Pin a friend: their messages come first on this page'],
+      ['Camera in a chat|paste a picture', 'Send a picture: the page you\'re on (mark it up first) or anything you copied'],
+      ['Drag the chat by its top', 'It stays where you put it; double-click the top puts it back beside Sidearm']
+    ]],
+    ['Screenshots & drawing', [
+      ['Alt + S|Shield → Screenshot', 'Drag over a part of the page, or take what you see, or the whole page with its scroll'],
+      ['Draw|C|S', 'Then mark it up, copy it, or save it as a PNG (Pictures\\Sidearm; Settings → Screenshots changes that)'],
+      ['Pen · brush · highlighter', 'Thin and precise / thicker the slower you go / see-through; [ ] change the size'],
+      ['✨ Magic (G)', 'Rough circles, boxes, triangles, lines and arrows come out neat; hold Shift to keep one as drawn'],
+      ['Stamps (S)|Text (T)', 'Crosshair, skull, GG and friends (the wheel sizes them); text gets an outline that reads on anything'],
+      ['🌈 color', 'Rainbow ink'],
+      ['Save to notes|Ctrl + S', 'Kept under Drawings on this page; it opens again to keep drawing, and saves itself from then on'],
+      ['Copy|Save file|To a friend', 'The finished picture: the clipboard, a PNG file, or Raven (a sharp WebP)'],
+      ['+ under Drawings', 'A blank sheet']
+    ]],
+    ['Downloads & scrolling', [
+      ['Alt + drag over a page', 'A box: everything in it to download, pictures at their largest, file links and videos'],
+      ['Untick what you don\'t want → Download', 'Into Downloads\\<site>, with the site\'s sign-in; Change picks another folder'],
+      ['Hold the middle button and move', 'Scroll joystick: the further you pull, the faster, in any direction'],
+      ['Click the middle button', 'The joystick stays on until the next click or Esc; the wheel changes its speed'],
+      ['Settings → Feel → Scroll joystick', 'Its speed, or a key that starts it where the pointer is']
     ]],
     ['Gestures', null],
     ['Feel', [
@@ -404,7 +456,9 @@
         ['L', 'R', 'U', 'D', 'UD', 'DR', 'DL'].forEach(function (k) {
           if (gest[k] && GNAME[gest[k]]) rows.push([k.split('').map(function (d) { return ARROWS[d]; }).join(' then '), GNAME[gest[k]]]);
         });
+        Object.keys(SHAPES).forEach(function (k) { if (gest[k] && GNAME[gest[k]]) rows.push([SHAPES[k], GNAME[gest[k]]]); });
         rows.unshift(['Hold right button, flick', 'About 40 px; a plain right-click still opens the menu']);
+        rows.push(['Hold right button, draw a shape', 'Circle, square, triangle, ✓, Z or a zigzag; or your own (Settings → Gestures → Record)']);
         rows.push(['Settings → Gestures', 'Change or switch off any of them']);
       }
     }

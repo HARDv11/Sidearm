@@ -14,7 +14,7 @@
   <div class="s-title"><svg viewBox="0 0 24 24" class="s-ret"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1.5v6M12 16.5v6M1.5 12h6M16.5 12h6" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/></svg>Settings</div>
   <nav class="s-nav">
     <a href="#general">General</a><a href="#raven" id="ravenNav">Raven</a><a href="#quick">Quick bar</a><a href="#look">Look</a><a href="#search">Search</a><a href="#pages">Pages</a><a href="#lookup">Look-up</a>
-    <a href="#links">Links</a><a href="#translate">Translation</a><a href="#gestures">Gestures</a><a href="#feel">Feel</a><a href="#ai">Ask AI</a><a href="#wiki">Wikipedia</a><a href="#sites">Sites</a><a href="#speed">Speed</a><a href="#advanced">Advanced</a>
+    <a href="#links">Links</a><a href="#translate">Translation</a><a href="#gestures">Gestures</a><a href="#shots">Screenshots</a><a href="#feel">Feel</a><a href="#ai">Ask AI</a><a href="#wiki">Wikipedia</a><a href="#sites">Sites</a><a href="#speed">Speed</a><a href="#advanced">Advanced</a>
   </nav>
   <span id="saved" class="s-saved">Saved</span>
 </header>
@@ -174,12 +174,43 @@
     <h2>Mouse gestures</h2>
     <div class="s-row"><div><b>Gestures</b><small>Hold the right mouse button and flick about 40 px. A plain right-click still opens the menu.</small></div><span data-bool="gestures"></span></div>
     <div class="s-gest" id="gestList"></div>
+    <div class="s-blockhead"><b>Shapes</b><small>Draw one with the right button held: a circle (either way round), a square, a triangle, a tick, a Z or a zigzag.</small></div>
+    <div class="s-gest" id="shapeList"></div>
+    <div class="s-blockhead"><b>Your own gestures</b><small>Draw it three times in the box below, name it and pick what it does. Up to 12.</small></div>
+    <div class="s-mine" id="myGestures"></div>
+    <div class="s-rec" id="recBox">
+      <canvas id="recPad" width="520" height="220" aria-label="Draw your gesture here"></canvas>
+      <div class="s-rec-side">
+        <div class="s-rec-steps" id="recSteps"><i></i><i></i><i></i></div>
+        <small id="recHint">Draw it here with the left button, the way you'll draw it with the right.</small>
+        <input id="recName" class="s-text" maxlength="24" placeholder="Name, e.g. Lightning">
+        <select id="recAction"></select>
+        <span class="s-btns"><button id="recSave" class="pbtn accent" disabled>Save gesture</button><button id="recReset" class="pbtn">Start over</button></span>
+      </div>
+    </div>
+  </section>
+
+  <section id="shots">
+    <h2>Screenshots &amp; downloads</h2>
+    <div class="s-row"><div><b>Screenshots</b><small>Alt + S on a page: a part of it, what you see, or the whole page with its scroll. Then draw on it, copy it or save it.</small></div></div>
+    <div class="s-row"><div><b>Save pictures to</b><small id="shotFolder" class="s-status" data-raw>Pictures\Sidearm</small></div>
+      <span class="s-btns"><button id="shotPick" class="pbtn">Choose…</button><button id="shotOpen" class="pbtn">Open</button><button id="shotReset" class="pbtn">Default</button></span></div>
+    <div class="s-row"><div><b>Drawings</b><small id="drawCount">Kept with your notes, under Drawings on the start page.</small></div></div>
+    <div class="s-row"><div><b>Download box</b><small>Alt + drag over a page: everything in the box to download (pictures at their largest, file links, videos), ticked off in a list first.</small></div></div>
+    <div class="s-row"><div><b>Download to</b><small id="dlFolder" class="s-status" data-raw>Downloads\&lt;site&gt;</small></div>
+      <span class="s-btns"><button id="dlPick" class="pbtn">Choose…</button><button id="dlReset" class="pbtn">Downloads\&lt;site&gt;</button></span></div>
+    <div class="s-row"><div><b>The box's color</b><small>Your accent color, or one of its own.</small></div>
+      <span class="s-btns"><button id="selAccent" class="pbtn">Accent</button><label class="s-colorpick"><input type="color" id="selColor"><i id="selSwatch"></i></label></span></div>
   </section>
 
   <section id="feel">
     <h2>Feel</h2>
     <div class="s-row"><div><b>Ghost mode key</b><small>See-through and click-through, so a map or guide stays up while you play. Only taken while Sidearm is on screen.</small></div><button data-hotkey="ghostHotkey" class="s-key">Alt + G</button></div>
     <div class="s-row"><div><b>Ghost opacity</b><small>How see-through ghost mode is.</small></div><span class="s-range"><input type="range" min="20" max="90" step="5" data-range="ghostOpacity" data-scale="100"><output></output></span></div>
+    <div class="s-row"><div><b>Scroll joystick</b><small>Hold the middle button on a page and move: the further, the faster, any way. A click leaves it on until the next click. Links still open a Glance.</small></div><span data-bool="joystick"></span></div>
+    <div class="s-row"><div><b>Joystick speed</b><small>The wheel changes it too while the joystick is on.</small></div><span class="s-range"><input type="range" min="1" max="10" step="1" data-range="joystickSpeed"><output></output></span></div>
+    <div class="s-row"><div><b>Joystick key</b><small>Starts it where the pointer is, for a laptop's touchpad. Again or Esc stops it.</small></div>
+      <select data-select="joystickKey"><option value="">None</option><option value="Alt+J">Alt + J</option><option value="Alt+Q">Alt + Q</option><option value="CapsLock">Caps Lock</option><option value="F2">F2</option></select></div>
     <div class="s-row"><div><b>Mute new pages</b><small>No surprise audio over game comms. Alt + M or the speaker unmutes a tab.</small></div><span data-bool="muteByDefault"></span></div>
     <div class="s-row"><div><b>Clean links</b><small>Copied links lose utm_*, fbclid, gclid and other trackers; Google and Facebook redirects are unwrapped.</small></div><span data-bool="cleanLinks"></span></div>
     <div class="s-row"><div><b>Amnesia mode</b><small>Every holster wipes history, cookies, site data and recent searches, and tabs aren't kept between sessions. Signs you out of everything.</small></div><span data-bool="amnesia"></span></div>
@@ -232,6 +263,7 @@
   </footer>
 </main>
 
+<script src="shapes.js"></script>
 <script src="settings.js"></script>
 </body>
 </html>

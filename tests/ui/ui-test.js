@@ -99,12 +99,17 @@ const results = {};
   await s.goto(BASE + 'settings.html');
   const S = { hotkey: 'Alt+`', ghostHotkey: 'Alt+G', quickHotkey: 'Alt+Space', quickBar: true, quickPosition: 'mouse', blocker: 'ublock', adblock: true,
     currency: 'UAH', translateMode: 'inplace', translateTo: 'uk', autoTranslate: 'offer', neverTranslate: 'uk, en', theme: 'dark', language: LANG, bangs: init.bangs,
-    searchUrl: 'https://www.google.com/search?q={q}', opacity: 1, uiScale: 1, sendTo: 'auto', aiProvider: 'claude', claudeOpenIn: 'app', gestures: true, ghostOpacity: 0.6, accent: '#6f9bd1', accent2: '', tint: 30, grain: 0, updateCheck: true, snapEdges: true, youtubeAds: true, autoHolster: true };
+    searchUrl: 'https://www.google.com/search?q={q}', opacity: 1, uiScale: 1, sendTo: 'auto', aiProvider: 'claude', claudeOpenIn: 'app', gestures: true, ghostOpacity: 0.6, accent: '#6f9bd1', accent2: '', tint: 30, grain: 0, updateCheck: true, snapEdges: true, youtubeAds: true, autoHolster: true,
+    gestureLeft: 'back', gestureRight: 'forward', gestureUp: 'top', gestureDown: 'close', gestureUpDown: 'reload', gestureDownRight: 'home', gestureDownLeft: 'newTab',
+    gestureCircle: 'shot', gestureCircleBack: 'draw', gestureSquare: 'popPage', gestureTriangle: 'reader', gestureCheck: 'send', gestureZ: 'ghost', gestureZigzag: 'mute',
+    myGestures: JSON.stringify([{ name: LANG === 'uk' ? 'Блискавка' : 'Lightning', action: 'raven', pts: require('../../ui/shapes.js').normalize([[60, 0], [20, 50], [50, 50], [10, 100]]) }]),
+    joystick: true, joystickSpeed: 6, joystickKey: 'Alt+J', shotFolder: '', downloadFolder: '', selectColor: '' };
   await s.evaluate(S => window.__deliver({ t: 'settings', s: S, version: '0.6.2 · Loadout', filters: 'uBlock Origin Lite: On: uBlock Origin Lite 2026.1012.1545',
     ublock: 'On: uBlock Origin Lite 2026.1012.1545', ublockOn: true, quickKeyOk: true, rates: 'NBU · 16.10.2026 · 43 currencies', wiki: 'Not installed', sites: {}, browser: { name: 'Zen', choice: 'auto' },
-    update: { current: '0.8.0', latest: '0.8.1', title: 'Sidearm 0.8.1 · Resupply', notes: 'Fixed: the quick bar on two monitors.\nNew: a bigger notes box.', status: 'Sidearm 0.8.1 is out', can: true } }), S);
+    update: { current: '0.8.0', latest: '0.8.1', title: 'Sidearm 0.8.1 · Resupply', notes: 'Fixed: the quick bar on two monitors.\nNew: a bigger notes box.', status: 'Sidearm 0.8.1 is out', can: true },
+    folders: { shots: 'Pictures\\Sidearm', downloads: 'Downloads\\<site>' }, drawings: 7 }), S);
   await s.waitForTimeout(200);
-  for (const id of ['general', 'quick', 'look', 'pages', 'search', 'translate']) {
+  for (const id of ['general', 'quick', 'look', 'pages', 'search', 'translate', 'gestures', 'shots', 'feel']) {
     await s.evaluate(id => document.getElementById(id).scrollIntoView(), id);
     await s.waitForTimeout(80);
     const box = await s.evaluate(id => { const r = document.getElementById(id).getBoundingClientRect(); return { y: r.top, h: r.height }; }, id);
@@ -147,6 +152,12 @@ const results = {};
   await n.fill('#filter', LANG === 'uk' ? 'швидк' : 'quick');
   await n.waitForTimeout(100);
   await n.screenshot({ path: OUT + 'manual-quick-' + LANG + '.png' });
+  await n.fill('#filter', LANG === 'uk' ? 'малю' : 'draw');
+  await n.waitForTimeout(100);
+  await n.screenshot({ path: OUT + 'manual-draw-' + LANG + '.png' });
+  await n.fill('#filter', LANG === 'uk' ? 'джойстик' : 'joystick');
+  await n.waitForTimeout(100);
+  await n.screenshot({ path: OUT + 'manual-joystick-' + LANG + '.png' });
 
   // ── 6. pop.html wrapper for YouTube ──
   const v = await ctx.newPage(); v.on('pageerror', e => errors.push('pop: ' + e.message));

@@ -511,6 +511,29 @@ body.newtab {
 .notes-hint kbd { font: 600 11px/1 var(--font-mono); padding: 2px 5px; border: 1px solid var(--line-2); border-radius: 4px; color: var(--dim); }
 .notes-state { margin-left: auto; font: 600 10.5px/1 var(--font-label); letter-spacing: .2em; text-transform: uppercase; color: var(--accent-2); opacity: 0; transition: opacity .2s; }
 .notes-state.on { opacity: 1; }
+/* 0.9.5: drawings under the notes */
+.drawings { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.dr-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.dr-head h3 { margin: 0; font: 600 11px/1 var(--font-label); letter-spacing: .26em; text-transform: uppercase; color: var(--dim); }
+.dr-all { margin-left: auto; padding: 3px 8px; background: transparent; border: 1px solid var(--line-2); border-radius: 6px; color: var(--dim); cursor: pointer; font: 600 11.5px/1.2 var(--font-text); }
+.dr-all:hover { color: var(--text); border-color: var(--accent); }
+.dr-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.dr-tile {
+  position: relative; width: 116px; height: 76px; padding: 0; overflow: hidden;
+  background: var(--raise) center / cover no-repeat; border: 1px solid var(--line-2); border-radius: 8px; cursor: pointer;
+  transition: transform .15s, border-color .15s;
+}
+.dr-tile:hover { transform: translateY(-2px) rotate(-1deg); border-color: var(--accent); }
+.dr-cap {
+  position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 7px 4px; text-align: left;
+  background: linear-gradient(transparent, rgba(0,0,0,.72)); color: #f2f2ee;
+  font: 600 11px/1.2 var(--font-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dr-shot { position: absolute; right: 5px; top: 5px; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+.dr-new { display: grid; place-items: center; align-content: center; gap: 3px; background: transparent; border-style: dashed; color: var(--dim); }
+.dr-new span { font: 300 26px/1 var(--font-text); color: var(--accent); }
+.dr-new small { font: 600 10.5px/1 var(--font-label); letter-spacing: .14em; text-transform: uppercase; }
+.dr-new:hover { color: var(--text); }
 .notes textarea {
   display: block; width: 100%; box-sizing: border-box; min-height: 92px; resize: none; border: 0; outline: none; padding: 4px 0;
   background: transparent; color: var(--text); font: 15px/1.55 var(--font-read); overflow-y: auto;
@@ -700,6 +723,23 @@ body.settings {
 .s-grow { display: flex; align-items: center; gap: 12px; }
 .s-stroke { flex: none; width: 52px; text-align: center; padding: 6px 0 5px; border: 1px solid var(--line-2); border-radius: 5px; color: var(--accent); font: 600 16px/1 "Segoe UI", sans-serif; }
 .s-grow select { flex: 1; min-width: 0; }
+/* 0.9.5: your own gestures and the recorder */
+.s-mine { display: grid; gap: 6px; padding: 4px 0 10px; }
+.s-mine-row b { flex: none; width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.s-mine-row select { max-width: 240px; }
+.s-mine-pic { flex: none; width: 52px; height: 32px; border: 1px solid var(--line-2); border-radius: 5px; background: var(--page); }
+.s-none { margin: 0; color: var(--faint); font-size: 13px; }
+.s-rec { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; padding: 4px 0 8px; transition: opacity .15s; }
+.s-rec.off { opacity: .4; pointer-events: none; }
+.s-rec canvas { width: min(520px, 100%); height: auto; aspect-ratio: 520 / 220; border: 1px dashed var(--line-2); border-radius: 10px; background: var(--page); cursor: crosshair; touch-action: none; }
+.s-rec-side { display: flex; flex-direction: column; gap: 8px; min-width: 220px; flex: 1; }
+.s-rec-side small { color: var(--faint); font-size: 12.5px; min-height: 2.6em; }
+.s-rec-steps { display: flex; gap: 6px; }
+.s-rec-steps i { width: 26px; height: 6px; border-radius: 3px; background: var(--line-2); transition: background .2s; }
+.s-rec-steps i.on { background: var(--accent); }
+.s-colorpick { position: relative; display: inline-grid; place-items: center; width: 34px; height: 30px; border: 1px solid var(--line-2); border-radius: 6px; cursor: pointer; overflow: hidden; }
+.s-colorpick input { position: absolute; inset: -8px; opacity: 0; cursor: pointer; }
+.s-colorpick i { width: 18px; height: 18px; border-radius: 4px; pointer-events: none; }
 
 /* ───────────── your look: grain (Settings → Look) ───────────── */
 /* film grain over Sidearm's own pages (websites are never touched): light specks on dark, dark specks on light */
@@ -763,6 +803,19 @@ body.rv-page { margin: 0; background: var(--page); color: var(--text); font: 14p
 .rv-ic { width: 16px; height: 16px; flex: none; }
 .rv-grow { flex: 1; }
 .rv-page button { cursor: pointer; }
+.rv-head, .rv-top, .rv-who, .rv-peek-top { cursor: grab; }
+/* 0.9.5: pictures in a chat, and the camera */
+.rv-bubble.pic { padding: 4px; }
+.rv-bubble.pic .rv-text { padding: 6px 8px 4px; }
+.rv-pic { display: block; max-width: 100%; padding: 0; border: 0; border-radius: 9px; overflow: hidden; background: var(--raise); cursor: zoom-in; }
+.rv-pic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.rv-pic.loading { background: linear-gradient(90deg, var(--raise), var(--line-2), var(--raise)) 0 0 / 200% 100%; animation: rv-shimmer 1s linear infinite; }
+.rv-pic.loading img { visibility: hidden; }
+@keyframes rv-shimmer { to { background-position: -200% 0; } }
+.rv-cam { flex: none; display: grid; place-items: center; width: 34px; height: 34px; padding: 0; background: transparent; border: 0; border-radius: 8px; color: var(--dim); cursor: pointer; }
+.rv-cam:hover { background: var(--raise); color: var(--accent); }
+.rv-cam .rv-ic { width: 20px; height: 20px; }
+.rv-head button, .rv-top button, .rv-who button, .rv-peek-top button { cursor: pointer; }
 .rv-head { display: flex; align-items: center; gap: 6px; padding: 10px 8px 10px 14px; border-bottom: 1px solid var(--line); flex: none; }
 .rv-title { display: flex; align-items: center; gap: 8px; margin: 0; font: 600 12px/1 var(--font-label); letter-spacing: .24em; text-transform: uppercase; color: var(--accent); }
 .rv-title-wing { width: 15px; height: 16px; }

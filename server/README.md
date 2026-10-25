@@ -1,6 +1,6 @@
 # Sidearm post office
 
-A small Cloudflare Worker that lets two Sidearm copies send each other notes and links. One inbox per Sidearm copy, each a SQLite Durable Object. It runs on Cloudflare's free plan; nobody has to keep a server running.
+A small Cloudflare Worker that lets two Sidearm copies send each other notes, links and (since 0.9.5) pictures. One inbox per Sidearm copy, each a SQLite Durable Object. It runs on Cloudflare's free plan; nobody has to keep a server running.
 
 **It can't read anything.** Sidearm encrypts a message on the PC before sending it. The server only ever sees public keys (who may write to whom), ciphertext and times.
 
@@ -20,19 +20,21 @@ All under `/v1/inbox/<id>/`, all signed.
 
 | Method and path | Who | Body | Does |
 | --- | --- | --- | --- |
-| `GET ws` | owner | | WebSocket. The server sends `{t:"hello", list}`, then `{t:"msg", msg}` as messages arrive. The client sends `ping`, `{t:"ack", ids}` or `{t:"fetch"}` |
+| `GET ws` | owner | | WebSocket. The server sends `{t:"hello", list}`, then `{t:"msg", msg}` as messages arrive. The client sends `ping`, `{t:"ack", ids}`, `{t:"fetch"}` or `{t:"get", id}` (answered with `{t:"one", msg}`) |
 | `GET messages` | owner | | `{list:[{id, from, kind, ct, at}]}`: the fallback when there's no socket |
 | `POST ack` | owner | `{ids}` | Removes delivered messages |
 | `PUT friends` | owner | `{friends:[key…]}` | Replaces the friend list (up to 64 keys) |
 | `POST invites` | owner | `{token}` | A one-time invite, valid for 24 hours (up to 10 open at a time) |
-| `POST send` | anyone signed | `{id, ct, invite?}` | Friends leave a `msg`; a valid invite leaves a `request`; anyone else gets 403 |
+| `POST send` | anyone signed | `{id, ct, invite?, pic?}` | Friends leave a `msg` (or, with `pic: true`, a `pic`); a valid invite leaves a `request`; anyone else gets 403 |
 | `POST delete` | owner | `{}` | Deletes the inbox |
 
+**Pictures (0.9.5).** A picture is an ordinary sealed message (Sidearm puts a WebP of up to ~240 KB inside it), sent with `pic: true`. So the hello list and pushes stay small, a `pic` is listed and pushed with an empty `ct`; Sidearm asks for it with `{t:"get", id}` and gets the whole thing back as `{t:"one", msg}`. Sidearm 0.9.0 can't show pictures: it drops them.
+
 **Limits:**
-- each sender can write 20 messages a minute and 300 a day to each inbox;
-- `ct` (the ciphertext) can be up to 8 KB of base64url;
-- an inbox holds up to 500 waiting messages;
-- a request body can be up to 64 KB.
+- each sender can write 20 messages a minute and 300 a day to each inbox, of which 60 a day can be pictures;
+- `ct` (the ciphertext) can be up to 8 KB of base64url, or 460 KB for a picture;
+- an inbox holds up to 500 waiting messages, at most 100 of them pictures;
+- a request body can be up to 64 KB (512 KB for `send`).
 
 ## Cost
 

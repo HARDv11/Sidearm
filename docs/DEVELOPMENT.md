@@ -47,6 +47,8 @@ The shell is the only thing that touches Windows, the disk or the network on Sid
 
 **Raven since 0.9.** Messages between friends' Sidearms go through the post office in `server/` (a Cloudflare Worker, one SQLite Durable Object per inbox). The engine, `ui/raven-core.js`, runs inside the strip page: WebCrypto keys, signed requests, AES-GCM, one WebSocket. With Raven on, the strip view is never suspended, because it holds the connection. The shell keeps the files (`RavenStore`, `data\raven\`) and draws the windows: the side tabs (`RavenTabs`, painted by WinForms, no web view) and the chat (`RavenWindow`, `ui/raven.html`, made on first use like the quick bar).
 
+**Screenshots, drawing and the download box since 0.9.5.** Alt + S asks the page script for its picker (`shot-pick` with a one-time token); the page answers with the part you chose and what to do (`shot`), and the shell takes the picture through DevTools (`Page.captureScreenshot`, with `captureBeyondViewport` for the whole page). A picture to draw on opens `ui/draw.html` in a tab: the drawing is a list of items in the picture's own pixels, rendered on canvases; the shell only stores (`DrawStore`, `data\notes\drawings\`), copies, saves and sends. Alt + drag on a page draws the box in `inject.js`, which finds the pictures, file links and videos in it; the shell hands back a token only if Alt is really held, and downloads the ticked files itself (`MainForm.Downloads.cs`, the site's cookies from the engine). The scroll joystick and shape gestures (`ui/shapes.js`, pasted into the page script) live entirely in the page.
+
 **Two more windows since 0.7.** The quick bar (`QuickBar`, `ui/quick.html`) and the video pop-out (`VideoWindow`) are top-level windows with their own web views in the same engine environment, so they share cookies, logins and recent searches. The quick bar is created on first use, suspended 30 s after it hides and dropped with the tabs after a long holster; the pop-out lives until it's closed, through holsters.
 
 ## Repository layout
@@ -71,10 +73,16 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `src/Shortcuts.cs` | 0.8.1: `Sidearm.lnk` on the desktop and in Start (IShellLink), and moving them along when a new copy starts in another folder. Sidearm is a tool window with no taskbar button, so these are how it gets pinned |
 | `src/CrashCheck.cs` | 0.8.1: a `running.txt` note in `data\` while Sidearm runs; if it's still there at the next start, Windows' crash record (Application Error / .NET Runtime) is copied into the log |
 | `src/ClipHistory.cs`, `src/MainForm.Clips.cs` | 0.9: clipboard history (`cb`, Alt + V). Memory only; no clipboard listener, see the gotcha |
-| `src/FloatWindow.cs`, `src/PageWindow.cs`, `src/MainForm.Pop.cs` | 0.9: what the pop-outs share (title-bar menu, opacity, ghost), the page pop-out window, and moving a tab's view into it and back |
+| `src/FloatWindow.cs`, `src/PageWindow.cs`, `src/MainForm.Pop.cs` | 0.9: what the pop-outs share (opacity, ghost), the page pop-out window, and moving a tab's view into it and back. 0.9.5: no Windows caption; `FloatBar` is Sidearm's own strip (drag, ↩, ghost, ×, wheel = opacity, right-click menu) and the thin frame resizes |
+| `src/LayeredForm.cs` | 0.9.5: a top window drawn with per-pixel alpha (`UpdateLayeredWindow`): smooth edges, clear pixels click through. Raven's side tabs use it |
+| `src/MainForm.Shots.cs`, `src/DrawStore.cs` | 0.9.5: screenshots (picker token, DevTools capture, copy / save / draw), the drawing page's backend, and the drawings kept in `data\notes\drawings\` |
+| `src/MainForm.Downloads.cs` | 0.9.5: the Alt + drag box: the token, the folder, and the downloads (3 at a time, site cookies, `.part` until whole, never overwrites) |
 | `src/GlanceRail.cs` | 0.9: Glance's round buttons, painted by WinForms; also the wing icon (a tiny SVG path reader) |
 | `src/RavenStore.cs`, `src/MainForm.Raven.cs`, `src/MainForm.RavenUi.cs`, `src/RavenTabs.cs`, `src/RavenWindow.cs` | 0.9: Raven's files, its logic in the shell, the side tabs and the chat window |
-| `ui/raven-core.js`, `ui/raven.html`, `ui/raven.js`, `ui/avatars/` | 0.9: Raven's engine (also runs in Node for tests), its window, and the five avatars (WebP for pages, a small PNG for the side tabs) |
+| `ui/raven-core.js`, `ui/raven.html`, `ui/raven.js`, `ui/avatars/` | 0.9: Raven's engine (also runs in Node for tests), its window, and the five avatars (WebP for pages, a 144 px PNG for the side tabs) |
+| `ui/draw.html`, `draw.js`, `draw.css`, `ui/draw/` | 0.9.5: the drawing page and its tool pictures (the pen and the brush are the project's own art) |
+| `ui/shapes.js` | 0.9.5: shape recognition ($1-style, 32 points) for gestures and the magic pen; also loaded by Node tests and the settings page's recorder |
+| `ui/picture.js` | 0.9.5: squeezes a picture into a sharp WebP under Raven's limit (~240 KB), for the drawing page and the chat |
 | `server/` | 0.9: the post office (see `server/README.md`); deployed by `.github/workflows/deploy-post-office.yml` on every push that touches it |
 | `src/Updater.cs`, `src/MainForm.Update.cs` | 0.8: update check against GitHub Releases, download + SHA-256 check, file swap with `.old` copies, rollback, and the toast / Settings glue |
 | `src/Rates.cs`, `src/Chime.cs`, `src/Ublock.cs` | NBU exchange rates with a fallback and a disk cache; the in-memory timer chime; uBlock Origin Lite download, unpack and enable |
@@ -87,7 +95,7 @@ The shell is one `MainForm` split into partial classes by concern. The UI is sta
 | `ui/chrome.html`, `app.js`, `query.js` | The strip: command bar, palette, tabs (patched in place), ticker, timer readout, shield panel. `query.js` resolves input (prefixes, calculator, units, money, timers, URLs). `chrome.html?view=tabs` is the bottom tab strip |
 | `ui/quick.html`, `quick.js` | The quick bar page (same `query.js`, shares recent searches through `sidearm.recent.v1`) |
 | `ui/pop.html` | Host page for YouTube and Twitch embeds in the video pop-out (they refuse to play without a referrer or `parent`) |
-| `ui/inject.js` | Runs in every page: keys, look-up card, cosmetic hiding, fog, force dark, Glance links, gestures, image viewer, page language, video detection, in-place translation |
+| `ui/inject.js` | Runs in every page: keys, look-up card, cosmetic hiding, fog, force dark, Glance links, gestures (directions and shapes), image viewer, page language, video detection, in-place translation; 0.9.5: the scroll joystick, the Alt + drag box and its list, the screenshot picker |
 | `ui/look.js` | Accent, gradient tint and grain from the user's colors, shared by strip, start page and settings |
 | `ui/newtab.html` | Start page: pinned sites, notes and the Field manual |
 | `ui/settings.html`, `settings.js` | Settings page (talks to the shell with `settings-*` messages) |
@@ -157,16 +165,24 @@ Everything talks through WebView2 web messages: pages call `chrome.webview.postM
 - Quick bar → shell: `op: "clip"` (`id`); shell → quick bar: `clips`, `raven-friends`.
 - Raven's messages themselves (what the post office carries) are described in `ui/raven-core.js` and `server/README.md`.
 
+**Since 0.9.5.**
+- Page → shell: `shot-open` (`token`: the picker is up), `shot` (`token`, `kind`: area / visible / full, `op`: draw / copy / save / send, `x`, `y`, `w`, `h` in CSS px of the viewport, `sx`, `sy` scroll, `dpr`), `dl-select` (`n`; answered with `dl-token` + `folder` only while Alt is down), `dl-folder` (`token`; opens a folder picker, answered with `dl-folder`), `dl` (`token`, `items` of `url` + `name`, `page`; once per token, ≤ 300; progress comes back as `dl-progress`: `done`, `failed`, `total`, `finished`), `joy-speed` (`v` 1-10). Shell → page: `shot-pick` (`token`, `raven`), `cfg` also carries `myGestures`, `joy` (`on`, `speed`, `key`) and `selColor`. `gesture` takes the new actions (`popPage`, `shot`, `draw`, `clips`, `send`, `raven`, `ghost`, `mute`, `reader`, `translate`; `joystick` stays in the page).
+- Drawing page (`draw.html`, `IsDrawPage`) → shell: `draw-get` (`shot` token or `id`), `draw-save` (`id`, `req`, `title`, `doc`, `png`, `bg` the first time, `thumb`, `w`, `h`), `draw-copy` (`png`), `draw-export` (`png`, `title`), `draw-send` (`key`, `data` WebP, `w`, `h`, `text`), `draw-delete`, `draw-folder`, `draw-close`. Shell → drawing page: `draw-load` (`id`, `fresh`, `title`, `bg`, `doc`, `then`: "", send or send:KEY, `cfg`: accent, theme, Raven friends), `draw-saved`, `draw-done`, `draw-sent`, `draw-error`.
+- Start page → shell: `drawings-get` (`all`), `drawings-open` (`id`, or null for a blank sheet); shell → start page: `drawings` (`list` of `id`, `title`, `updated`, `shot`, `thumb`, and `total`).
+- `raven.html` → shell: `drag` (move the window), `dock` (back beside Sidearm), `pic` (`name`; answered with `pic` + `data`), `picOpen`, `sendPic` (`key`, `data`, `w`, `h`, `text`), `shot` (`key`: the camera). Messages carry `pic`, `w`, `h`.
+- Strip: `page` takes `op: "shot"`; `cmd` takes `showSaved`, `shot`, `draw`.
+- Raven's pictures on the wire: a message with `t: "pic"` (`img` data URL, `w`, `h`) sealed like any other, sent with `pic: true`; the post office lists it without its contents and the engine asks for it (`get` → `one`). See `server/README.md`.
+
 **Since 0.8.** Strip → shell also sends `painted` (answer to `drawn`, from an animation frame), `alt` (`down`) and `note` (`text`); `cmd` takes `update` and `lookupOn`. The quick bar sends `op: "painted"` after `show` (which now carries `ox`, where the pointer is) and `op: "note"`.
 
-The page script's config is baked in at injection: `InjectScript()` replaces `/*SIDEARM_CFG*/{}` in `inject.js` with JSON. Changing a setting re-registers the script for future pages and posts `cfg` to open ones.
+The page script's config is baked in at injection: `InjectScript()` replaces `/*SIDEARM_CFG*/{}` in `inject.js` with JSON, and (0.9.5) `/*SIDEARM_SHAPES*/` with `ui/shapes.js` up to its `/*EXPORT*/` line, so the recognizer is a local of the page script and leaves no global on the page. Changing a setting re-registers the script for future pages and posts `cfg` to open ones.
 
 ## Settings and data files
 
 Everything the user can change lives in `data\settings.json`, and the settings page edits the same file. Property names on `Settings` are lowercase on purpose because they are what the user sees in the file.
 
 - **Adding a setting:** give it a property and a default in the constructor, then validate it in `Settings.Load`. If it has a side effect, handle it in `ApplySetting`. Finally add a row to `settings.html`. Simple controls use `data-bool`, `data-range` (+ `data-scale`), `data-num`, `data-choice`, `data-select` and `data-text`, and `settings.js` wires those up generically.
-- **Migrations:** `defaultsVersion` (currently 6). When an update must change an existing user's value (new prefixes, a renamed field like `zenPath` → `browserPath`), bump `CurrentDefaults` and branch on the old number in `Load`.
+- **Migrations:** `defaultsVersion` (currently 7; 7 moved ↓→ / ↓← from your browser to the start page / a new tab, unless they'd been changed). When an update must change an existing user's value (new prefixes, a renamed field like `zenPath` → `browserPath`), bump `CurrentDefaults` and branch on the old number in `Load`.
 - **Outside edits:** a `FileSystemWatcher` reloads the file when it's edited by hand and applies the changes live. It ignores Sidearm's own saves for 2 seconds (`Settings.LastSelfSave`).
 
 | File in data\ | Holds |
@@ -179,7 +195,9 @@ Everything the user can change lives in `data\settings.json`, and the settings p
 | `pins.json` | 0.8: pinned sites, `[{ title, url, icon }]`; missing = the two examples |
 | `raven\identity.json` | 0.9: Raven's keys (two P-256 key pairs as JWK, made by `raven-core.js`). Whoever has this file can write as you. Not DPAPI-protected on purpose: CryptUnprotectData is what password stealers call, and scanners judge by it |
 | `raven\friends.json` | 0.9: friends (`key`, `dh`, `name`, `alias`, `av`, `pinned`, `status`: friend / waiting / request, the four words, `unread`) |
-| `raven\history.json` | 0.9: the last 200 messages with each friend |
+| `raven\history.json` | 0.9: the last 200 messages with each friend (0.9.5: `pic`, `w`, `h` for a picture) |
+| `raven\pics\` | 0.9.5: pictures from and to friends, one file each, named by the message id; removed with the message, the friend, or Delete |
+| `notes\drawings\` | 0.9.5: drawings: `<id>.json` (the items, to keep editing), `<id>.bg.png` (the screenshot under them, written once), `<id>.png` (the finished picture), `<id>.jpg` (thumbnail), `index.json` (id, title, time, size) |
 | `update\` | 0.8: `pending.json` while a fresh update is unconfirmed, `failed.txt` after a failed install, the download while it runs |
 | `rates.json` | The last exchange rates (`date`, `source`, hryvnias per unit) |
 | `filters\` | Downloaded filter lists (EasyList, EasyPrivacy, EasyList Cookie), refreshed weekly; downloaded on first start since 0.7 |
@@ -221,6 +239,12 @@ Each of these cost a build to learn. Read them before changing the area they tou
 - **Raven keeps the strip awake (0.9).** The engine and its WebSocket live in the strip page, so `SleepAll` skips the strip view while Raven runs. It's one idle page; nothing else changes.
 - **The post office needs CORS (0.9).** Sidearm's pages are on `https://sidearm.example`, so the browser asks first (OPTIONS) before a call with the `X-Sidearm-*` headers. The Worker answers with `Access-Control-Allow-*` and exposes `Date` (a client whose clock is off by more than 5 minutes fixes itself from it once). Node doesn't do CORS, so `tests/ui/raven-ui-test.js` runs the engine inside the real strip page to check it.
 - **No clipboard listener (0.9).** `AddClipboardFormatListener` plus clipboard reads is a stealer pattern for scanners. Clipboard history compares `GetClipboardSequenceNumber` on a 700 ms timer, only while Sidearm or the quick bar is up, and reads the clipboard only when the number moved while Sidearm was in front.
+- **A Region can't anti-alias (0.9.5).** Raven's side tabs were a Region-shaped form, so their rounded edges were jagged. `LayeredForm` draws the whole window into a 32-bit bitmap and hands it to `UpdateLayeredWindow` (`ULW_ALPHA`): smooth edges, and fully clear pixels let clicks through. `WM_PAINT` is never used there; call `Redraw()`.
+- **Hiding the chat used to bring the side tab back (0.9.0).** Hiding Raven's window raises `VisibleChanged`, which redraws the tabs, and Sidearm was still visible at that moment. `HideRavenWindows` now hides the chat first under a `ravenHiding` flag, and `OnVisibleChanged` hides both whenever Sidearm hides.
+- **Pages can't start a screenshot or a download by themselves (0.9.5).** `shot` is taken only from the tab that was sent `shot-pick`, with its token, within 5 minutes. `dl-select` gets a token only while Alt is down (`Control.ModifierKeys`, read once, not polled), and a token is good for one batch of up to 300 files into the download folder. A web page could fake the messages; the token is what it can't fake.
+- **DevTools screenshots on any page (0.9.5).** `CallDevToolsProtocolMethodAsync("Page.captureScreenshot")` works with DevTools switched off. Coordinates are CSS pixels of the page (add the scroll); `clip.scale` 1 gives the screen's own sharpness. A whole page is `captureBeyondViewport` with `Page.getLayoutMetrics`' `cssContentSize`, scaled to stay under 16,000 px tall and ~40 million pixels.
+- **The drawing page keeps the screenshot as an `<img>`, the ink on one canvas (0.9.5).** The ink canvas is capped at 16 million pixels (a long page draws at lower resolution on screen); copying, saving and sending re-draw every item at full size, so the result is always sharp. The eraser only takes ink away (its own layer).
+- **Esc on Sidearm's own pages (0.9.5).** `inject.js` holsters on Esc unless the page already handled it (`defaultPrevented`). Its listener is on `window`, so a page that wants Esc listens on `document` (it runs first) and calls `preventDefault`.
 - **Embeds want a parent page.** YouTube refuses an embed opened as the top page (no referrer) and Twitch needs `parent=`, so the pop-out loads them inside `ui/pop.html`.
 
 **State and data**
@@ -252,6 +276,9 @@ WebView2 doesn't run on Linux, so the shell itself is only exercised on Windows.
 | The strip, quick bar, start page, settings, page script | Playwright-core with `/opt/pw-browsers/chromium --headless=new`, serving `ui/` from `python3 -m http.server` on 127.0.0.1 (localStorage needs a real origin) with a stub `window.chrome.webview` that records `postMessage` and replays shell messages; run once in English and once with `sidearm.lang = uk` | screenshots look right; zero DOM mutations in `#tabs` over 20 busy `tabs` messages; the recorded messages match the protocol |
 | Raven end to end | `tests/raven.test.mjs` against `wrangler dev --local` (the `server/` folder): two Sidearms pair with a code, compare words, talk both ways, offline delivery, acks, refusals, too-long messages | all pass |
 | Raven's files and settings | `tests/shell/RavenTest.cs` by reflection: the store's save / load / caps / cleaning, call sign and quick-reply cleaning, setting fallbacks, the wing's SVG path | all pass |
+| Shapes | `tests/shapes.test.js`: circles both ways, squares, triangles, ticks, Z and zigzags drawn by a shaky hand from different starts; straight flicks and L-strokes that must not be shapes; a custom gesture; the magic pen's line, arrow, ellipse, box and triangle | all pass |
+| Drawings, pictures, new settings | `tests/shell/DrawTest.cs`: `DrawStore` (ids, files, the screenshot written once, PNG only, delete), Raven's picture files, your own gestures cleaned, the 0.9.5 gesture migration, joystick and box-color validation. `UpdaterTest` adds the clean-exit cases | all pass |
+| Drawing page and the page script's new parts | `tests/ui/draw-ui-test.js` (en, uk light): picker → area → copy; Alt + drag box and list; joystick hold and click; circle / triangle / square / ↓→ / ↓← gestures; a blank sheet with every tool, save and its stamp; a screenshot marked up and sent (WebP size) | no page errors; the recorded messages match |
 | Raven's window, start-page block, settings, @name, `cb` | `tests/ui/raven-ui-test.js` (en, uk, light): screenshots of every mode, the messages each button sends, and the real engine in the strip page against the local post office (CORS) | no page errors; engine online, invite made |
 | The exe itself | `pefile`: resources 3, 14, 16, 24 present, version strings filled in, `verify_checksum()` true | all true |
 
@@ -293,6 +320,30 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 
 Newest first. Every version name is in the log's `starting` line, so log entries can be matched to builds. Milestones 1–4 of the original plan map to 0.1, 0.3, 0.4 and 0.5.
 
+### 0.9.5 · Recon — 2026-10-25
+
+*Screenshots you can draw on, a box that downloads everything in it, a scroll joystick and gestures you draw. In Ukrainian the version is called Розвідка.*
+
+**Added**
+
+- **Screenshots** (Alt + S, shield panel, a circle gesture): a part of the page, what you see, or the whole page with its scroll; then draw on it, copy it (as a picture and as PNG), save it (Pictures\Sidearm or a folder from Settings), or send it.
+- **Drawing page** (`draw.html`): pen, brush (width follows speed or a pen's pressure), highlighter, eraser, text with an outline, 16 stamps, rainbow ink, sizes and colors; magic tidies rough circles, boxes, triangles, lines and arrows (`SidearmShapes.tidy`) with sparkles; undo / redo, zoom, pan; Save to notes (a stamp lands), then it saves itself; Copy, Save file, To a friend. Drawings sit under the notes on the start page.
+- **Raven pictures**: screenshots, drawings, pasted or dropped pictures, squeezed into a WebP under ~240 KB (`picture.js`); a camera button in the chat marks up the page you're on; a click opens a picture on the drawing page. Raven's window can be dragged by its top and remembers where (`ravenPos`; double-click: back beside Sidearm).
+- **Download box** (Alt + drag): pictures at their largest (srcset, linked originals, Google's `imgurl`), file links (archives, documents, GitHub release files…), videos; a list to tick; into Downloads\<site> or a picked folder; the box in your color or `selectColor`.
+- **Scroll joystick**: hold the middle button and pull, or click to leave it on; the wheel changes the speed (saved); an optional key (`joystickKey`).
+- **Gestures**: shapes (circle either way, square, triangle, tick, Z, zigzag) with their own actions, your own gestures recorded in Settings (three tries averaged), new actions; ↓← = new tab and ↓→ = start page by default.
+- **Pop-out strip**: `FloatBar` instead of Windows' tool-window caption.
+
+**Fixed**
+
+- Raven's side tab stayed on screen after Sidearm hid with the chat open, and its edges were jagged (now `LayeredForm`; avatars 144 px).
+- Quitting right after an update counted toward rolling it back (`Updater.CleanExit`).
+- The friend's avatar is "waves on the shore", not clouds.
+
+**Server**
+
+- Pictures: `pic: true` sends up to 460K characters (60 a day per sender, 100 waiting per inbox); listed without contents; `get` over the WebSocket answers with `one`.
+
 ### 0.9.0 · Raven — 2026-10-25
 
 *Messages between friends' Sidearms, pages that pop out, and a clipboard with a memory. In Ukrainian the version is called Ворон.*
@@ -310,7 +361,7 @@ Newest first. Every version name is in the log's `starting` line, so log entries
 - **Pop out a page** (Alt + Shift + P, shield panel, right-click): the tab's own view moves into a small always-on-top window, so nothing reloads. Its title-bar menu: Back to Sidearm, opacity. Up to 3. The ghost key turns them see-through with Sidearm (holstered: only them). `popsHide` hides pop-outs, videos included, while holstered. One remembered place for all of them (`pageBounds`).
 - **Clipboard history** (`cb`, `clip`, `буфер`, Alt + V; also in the quick bar): the last 10 copies made in Sidearm, text and pictures (at most 3 pictures, kept as PNG), memory only.
 - **Glance buttons** like Zen's: a column of round buttons beside the Glance (close, open here, new tab, your browser, copy link, send to a friend); the Glance leaves room for it.
-- Five avatars in `ui/avatars/` (the clouds are by soikach), shipped as 256 px WebP and 96 px PNG (the originals were a 28 MB PNG and a 2 MB SVG).
+- Five avatars in `ui/avatars/` (the waves on the shore are by soikach), shipped as 256 px WebP and 144 px PNG (96 px until 0.9.5) (the originals were a 28 MB PNG and a 2 MB SVG).
 
 **Fixed**
 
@@ -534,10 +585,16 @@ Newest first. Every version name is in the log's `starting` line, so log entries
 - [ ] 0.9: Raven's side tabs stay glued to the window while it moves, and don't take the focus when clicked.
 - [ ] 0.9: Raven reconnects after the PC sleeps; real request counts in Cloudflare's metrics.
 - [ ] 0.9: the HoYoLAB map tab is kept now ("A page asked to close its tab, kept it" in the log).
+- [ ] 0.9.5: the pop-out strip drags, resizes from every edge, and its wheel changes the opacity.
+- [ ] 0.9.5: Raven's side tabs draw with smooth edges (layered window) and still don't take the focus; they go away with Sidearm.
+- [ ] 0.9.5: screenshots of the whole page on long pages (lazy images, sticky headers); "Screenshot: … → …" in the log.
+- [ ] 0.9.5: the download box with real sign-ins (GitHub release assets, a mod site, Google Images originals); "Download box: N saved" in the log.
+- [ ] 0.9.5: the joystick replaces Chromium's own middle-button autoscroll everywhere (no double scrolling).
+- [ ] 0.9.5: a quick quit after an update no longer counts ("quit before the engine started; this start doesn't count").
 
 **Ideas on the table**
 
-- 0.9.1: screenshots (visible part, whole page, an area) with drawing on them (arrows, circles, text) and sending them through Raven; mass download by dragging a box (Alt + drag) over images and file links.
+- Glance's round buttons with smooth edges too (they're a child control: a layered child window or a painted backdrop).
 
 - Code signing (for example SignPath's free open-source plan): the real fix for SmartScreen and scanner guesses.
 - Translate whole sentences in place even when they contain links or bold words (needs an HTML-aware endpoint).

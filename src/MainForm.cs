@@ -34,7 +34,7 @@ namespace Sidearm
         NotifyIcon tray;
         ToolStripMenuItem trayPin, trayAutostart;
         Task initTask;
-        string injectJs = "";
+        string injectJs = "", shapesJs = "";
 
         bool uiReady, quitting, fullscreen, dragging, unloaded, hotkeyOk, boundsApplied;
         int chromePx = -1, uiPx = -1; // device px reported by the UI page
@@ -80,6 +80,14 @@ namespace Sidearm
             InitClips();
             InitRaven();
 
+            try
+            {
+                // 0.9.5: the shape recognizer goes inside the page script (no global left on the page)
+                shapesJs = File.ReadAllText(Path.Combine(Program.UiDir, "shapes.js"));
+                int cut = shapesJs.IndexOf("/*EXPORT*/", StringComparison.Ordinal);
+                if (cut >= 0) shapesJs = shapesJs.Substring(0, cut);
+            }
+            catch (Exception ex) { Log.Error("shapes.js", ex); }
             try { injectJs = File.ReadAllText(Path.Combine(Program.UiDir, "inject.js")); }
             catch (Exception ex) { Log.Error("Could not read ui\\inject.js", ex); }
         }
@@ -537,6 +545,7 @@ namespace Sidearm
 
             if (alt && !ctrl && (key == Keys.D1 || key == Keys.NumPad1)) { CancelLookup(); ClipboardSearch(); return true; }
             if (alt && !ctrl && !shift && key == Keys.V) { CancelLookup(); ShowClips(); return true; }
+            if (alt && !ctrl && !shift && key == Keys.S) { CancelLookup(); StartShot(glance ?? active); return true; }
             if (alt && !ctrl && key == Keys.R) { CancelLookup(); ToggleReader(active); return true; }
             if (alt && !ctrl && key == Keys.F) { CancelLookup(); ClearFog(active); return true; }
             if (alt && !ctrl && key == Keys.D) { CancelLookup(); FocusBar(true); return true; }
@@ -647,6 +656,7 @@ namespace Sidearm
                         else if (pop == "translate") ToggleTranslate(active);
                         else if (pop == "popout") PopOutVideo(active);
                         else if (pop == "popPage") PopOutPage(active);
+                        else if (pop == "shot") StartShot(active);
                         else if (pop == "ublock") { if (UblockDashboard != null) Navigate(UblockDashboard, true); }
                         else SetSiteOption(pop, Json.Bool(m, "on"));
                         break;
@@ -721,6 +731,9 @@ namespace Sidearm
                         else if (name == "update") UpdateNow();
                         else if (name == "shortcuts") MakeShortcuts();
                         else if (name == "ravenRequests") OpenRaven("list", null, null);
+                        else if (name == "showSaved") ShowSavedFile();
+                        else if (name == "shot") StartShot(glance ?? active);
+                        else if (name == "draw") OpenDrawing(null);
                         else if (name == "lookupOn" && active != null) { SetSiteOption("lookup", true); Toast("Word look-up is on again for this site", null, null); }
                         break;
                     case "log":
@@ -1110,6 +1123,7 @@ namespace Sidearm
                 if (Visible) SaveBounds();
                 S.Save();
                 SaveSession();
+                try { if (!Updater.Busy) Updater.CleanExit(env != null && uiReady); } catch (Exception) { } // not mid-update: that pending belongs to the new version
                 Native.UnregisterHotKey(Handle, HotkeyId);
                 if (tray != null) { tray.Visible = false; tray.Dispose(); }
                 foreach (var t in tabs) if (t.View != null) t.View.Dispose();

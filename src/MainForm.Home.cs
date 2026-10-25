@@ -34,6 +34,13 @@ namespace Sidearm
                         PostToContent(tab, new { t = "notes", text = ReadNotes() });
                         PostToContent(tab, new { t = "pins", list = ReadPins() });
                         PostToContent(tab, new { t = "raven-home", raven = RavenHomeView() });
+                        PostToContent(tab, new { t = "drawings", list = DrawingsView(12), total = DrawStore.List().Count });
+                        break;
+                    case "drawings-get":
+                        PostToContent(tab, new { t = "drawings", list = DrawingsView(Json.Bool(m, "all") ? DrawStore.MaxDrawings : 12), total = DrawStore.List().Count });
+                        break;
+                    case "drawings-open":
+                        OpenDrawing(Json.Str(m, "id"));
                         break;
                     case "raven-open":
                         string key = Json.Str(m, "key");

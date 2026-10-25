@@ -249,13 +249,29 @@ namespace Sidearm
                 aiName = AiName,
                 browserName = BrowserName,
                 gestures = S.gestures ? S.GestureMap() : null,
+                myGestures = S.gestures ? MyGesturesForPages() : null,
+                joy = JoyCfg(),
+                selColor = S.selectColor ?? "",
+                ravenTitle = RavenTitle,
                 dict = Lang.Code == "en" ? null : Lang.Page,
                 fontBase = UiOrigin + "fonts/",
                 dark = Sites.Where(x => x.forceDark),
                 fog = Sites.Where(x => x.autoFog),
                 noLookup = Sites.Where(x => x.noLookup)
             });
-            return injectJs.Replace("/*SIDEARM_CFG*/{}", cfg);
+            return injectJs.Replace("/*SIDEARM_CFG*/{}", cfg).Replace("/*SIDEARM_SHAPES*/", shapesJs);
+        }
+
+        /// <summary>0.9.5: the joystick's settings for the pages.</summary>
+        object JoyCfg() { return new { on = S.joystick, speed = S.joystickSpeed, key = S.joystickKey ?? "" }; }
+
+        /// <summary>Your own gestures as the pages use them: name, action and the 32 points.</summary>
+        List<object> MyGesturesForPages()
+        {
+            var list = new List<object>();
+            var arr = Json.ParseAny(S.myGestures ?? "") as object[];
+            if (arr != null) foreach (var o in arr) { var d = o as Dictionary<string, object>; if (d != null) list.Add(d); }
+            return list;
         }
 
         /// <summary>Settings changed: future pages get the new script, open pages get the new config now.</summary>
@@ -271,7 +287,8 @@ namespace Sidearm
                     if (t.InjectId != null) core.RemoveScriptToExecuteOnDocumentCreated(t.InjectId);
                     t.InjectId = await core.AddScriptToExecuteOnDocumentCreatedAsync(script);
                     var site = Sites.Get(t.PageHost);
-                    PostToContent(t, new { t = "cfg", lookup = S.lookup && !site.noLookup, siteOff = S.lookup && site.noLookup, dbl = S.lookupOnDoubleClick, gestures = S.gestures ? S.GestureMap() : null });
+                    PostToContent(t, new { t = "cfg", lookup = S.lookup && !site.noLookup, siteOff = S.lookup && site.noLookup, dbl = S.lookupOnDoubleClick, gestures = S.gestures ? S.GestureMap() : null,
+                        myGestures = S.gestures ? MyGesturesForPages() : null, joy = JoyCfg(), selColor = S.selectColor ?? "" });
                 }
                 catch (Exception ex) { Log.Error("Refresh injection", ex); }
             }
@@ -380,6 +397,29 @@ namespace Sidearm
                 case "ravenAdd": OpenRaven(raven.Identity == null ? "list" : "add", null, null); break;
                 case "ravenList": OpenRaven("list", null, null); break;
                 case "ravenDelete": RavenDeleteEverything(); break;
+                // 0.9.5: folders for screenshots and the download box
+                case "pickShotFolder":
+                case "pickDownloadFolder":
+                {
+                    bool shots = name == "pickShotFolder";
+                    using (var dlg = new System.Windows.Forms.FolderBrowserDialog { ShowNewFolderButton = true, Description = Lang.T(shots ? "Where should screenshots and drawings go?" : "Where should the downloads go?") })
+                    {
+                        string cur = shots ? ShotDir : (S.downloadFolder ?? "");
+                        if (cur.Length > 0 && System.IO.Directory.Exists(cur)) dlg.SelectedPath = cur;
+                        if (dlg.ShowDialog(this) == System.Windows.Forms.DialogResult.OK && System.IO.Directory.Exists(dlg.SelectedPath))
+                        {
+                            if (shots) S.shotFolder = dlg.SelectedPath; else S.downloadFolder = dlg.SelectedPath;
+                            S.Save();
+                        }
+                    }
+                    PushSettingsSnapshot(tab);
+                    break;
+                }
+                case "resetShotFolder": S.shotFolder = ""; S.Save(); PushSettingsSnapshot(tab); break;
+                case "resetDownloadFolder": S.downloadFolder = ""; S.Save(); PushSettingsSnapshot(tab); break;
+                case "openShotFolder":
+                    try { System.IO.Directory.CreateDirectory(ShotDir); Process.Start("explorer.exe", "\"" + ShotDir + "\""); } catch (Exception) { }
+                    break;
                 case "ublockOpen":
                     if (UblockDashboard != null) Navigate(UblockDashboard, true);
                     break;
@@ -447,6 +487,8 @@ namespace Sidearm
                 update = UpdateInfo(),
                 raven = new { on = S.raven, online = ravenOnline, ready = RavenReady, title = RavenTitle, friends = raven == null ? 0 : raven.Friends.Count(f => f.status == "friend"), requests = raven == null ? 0 : raven.Friends.Count(f => f.status == "request"), key = raven != null && raven.Identity != null ? Json.Str(raven.Identity, "key") : "" },
                 shortcuts = new { desktop = Shortcuts.State(Shortcuts.DesktopPath), start = Shortcuts.State(Shortcuts.StartMenuPath) },
+                folders = new { shots = ShortPath(ShotDir), downloads = (S.downloadFolder ?? "").Length > 0 ? ShortPath(S.downloadFolder) : "Downloads\\<site>" },
+                drawings = DrawStore.List().Count,
                 sites = sites
             };
         }
@@ -540,6 +582,9 @@ namespace Sidearm
                 case "lookup": case "lookupOnDoubleClick": case "middleClickGlance": case "youtubeAds":
                 case "gestures": case "gestureLeft": case "gestureRight": case "gestureUp": case "gestureDown":
                 case "gestureUpDown": case "gestureDownRight": case "gestureDownLeft":
+                case "gestureCircle": case "gestureCircleBack": case "gestureSquare": case "gestureTriangle": case "gestureCheck":
+                case "gestureZ": case "gestureZigzag": case "myGestures":
+                case "joystick": case "joystickSpeed": case "joystickKey": case "selectColor":
                     RefreshInjection();
                     PushTabs();
                     break;

@@ -453,7 +453,7 @@ namespace Sidearm
             core.DocumentTitleChanged += (sender, e) =>
             {
                 tab.Title = tab.IsNewTab ? "New tab" : (string.IsNullOrWhiteSpace(core.DocumentTitle) ? tab.Url : core.DocumentTitle);
-                if (tab.Pop != null && !tab.Pop.IsDisposed) tab.Pop.Text = "Sidearm · " + Trim(tab.Title, 60);
+                if (tab.Pop != null && !tab.Pop.IsDisposed) tab.Pop.SetTitle(Trim(tab.Title, 80));
                 PushTabs();
                 SaveSessionSoon();
             };
@@ -530,7 +530,7 @@ namespace Sidearm
             string t = Json.Str(m, "t");
             if (t == null) return;
             // the start page keeps its notes and pinned sites through the shell; web pages can't touch them
-            if (t == "home-get" || t == "raven-open" || t.StartsWith("notes-", StringComparison.Ordinal) || t.StartsWith("pins-", StringComparison.Ordinal))
+            if (t == "home-get" || t == "raven-open" || t.StartsWith("notes-", StringComparison.Ordinal) || t.StartsWith("pins-", StringComparison.Ordinal) || t.StartsWith("drawings-", StringComparison.Ordinal))
             {
                 if (IsStartPage(e.Source)) OnHomeMessage(tab, m);
                 return;
@@ -539,6 +539,21 @@ namespace Sidearm
             if (t.StartsWith("settings-", StringComparison.Ordinal))
             {
                 if (IsTrustedPage(e.Source)) OnSettingsMessage(tab, m);
+                return;
+            }
+            // 0.9.5: the drawing page keeps drawings with the notes and copies, saves and sends them
+            if (t.StartsWith("draw-", StringComparison.Ordinal))
+            {
+                if (IsDrawPage(e.Source)) OnDrawMessage(tab, m);
+                return;
+            }
+            // 0.9.5: screenshots, the Alt + drag box and the joystick's speed (each checked inside)
+            if (t == "shot" || t == "shot-open") { OnShotMessage(tab, m); return; }
+            if (t.StartsWith("dl", StringComparison.Ordinal)) { OnDownloadMessage(tab, m); return; }
+            if (t == "joy-speed")
+            {
+                int v = (int)Json.Num(m, "v", S.joystickSpeed);
+                if (v >= 1 && v <= 10 && v != S.joystickSpeed) { S.joystickSpeed = v; SaveSettingsSoon(); }
                 return;
             }
             // any tab, even in the background, may ask for its hiding rules or report a result

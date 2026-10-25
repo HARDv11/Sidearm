@@ -49,6 +49,7 @@ namespace Sidearm
                 tab.Pop = w;
                 pops.Add(w);
                 w.BackRequested += () => ReturnPop(w);
+                StyleFloat(w);
                 w.Closing2 += () => OnPopClosing(w);
                 w.Move += (s, e) => RememberPopBounds(w);
                 w.ResizeEnd += (s, e) => RememberPopBounds(w);
@@ -220,6 +221,26 @@ namespace Sidearm
             if (on && gameWindow != IntPtr.Zero) Native.SetForegroundWindow(gameWindow);
             Log.Info(on ? "Ghost mode on (pop-outs)" : "Ghost mode off (pop-outs)");
         }
+
+        /// <summary>0.9.5: the pop-out's strip in Sidearm's colors; its ghost button ghosts every pop-out.</summary>
+        void StyleFloat(FloatWindow w)
+        {
+            w.Theme(FrameColor, FrameLine, IsLight ? Color.FromArgb(0x1D, 0x20, 0x23) : Color.FromArgb(0xE2, 0xE4, 0xDE),
+                IsLight ? Color.FromArgb(0x5B, 0x60, 0x5C) : Color.FromArgb(0x97, 0x9E, 0x98), AccentColor);
+            w.GhostRequested -= OnFloatGhostButton;
+            w.GhostRequested += OnFloatGhostButton;
+        }
+
+        void OnFloatGhostButton()
+        {
+            bool on = !Floats().Any(f => f.Visible && f.Ghost);
+            if (on) RegisterGhostHotkey(true); // the way back: a ghost can't be clicked
+            ToggleFloatsGhost();
+            if (on && !ghostKeyOk) { SetFloatsGhost(false); Toast(S.ghostHotkey + " is taken by another app, so ghost mode would have no way back", null, null); }
+            else if (on) Toast("Ghost: " + S.ghostHotkey + " brings the pop-outs back", null, null);
+        }
+
+        void RestyleFloats() { foreach (var f in Floats()) StyleFloat(f); }
 
         void SetFloatsGhost(bool on)
         {

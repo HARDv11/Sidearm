@@ -73,6 +73,7 @@ namespace Sidearm
             }
             catch (Exception) { }
             ApplyAccentFrame();
+            RestyleFloats();
             Invalidate();
             SendInit();
             string onAcc, acc = ReadableAccent(out onAcc);

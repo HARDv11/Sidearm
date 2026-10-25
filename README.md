@@ -33,12 +33,17 @@ You need Windows 10 or 11 with the Microsoft Edge WebView2 Runtime (Windows 11 a
 | **Alt + Shift + P** | Pop the whole page out (a map keeps its place, nothing reloads) |
 | **Alt + T** | Translate the page |
 | **Alt + V** | What you copied in Sidearm: the last 10 things, text and pictures |
+| **Alt + S** | Screenshot: a part, what you see, or the whole page; then draw on it, copy or save |
+| **Alt + drag** | Download everything in the box: pictures at their largest, files, videos |
+| **Middle button** | Scroll joystick: the further you pull, the faster |
 | **Hold Alt over a word** | Meaning, Wikipedia and translation |
 | **Prefixes** | `w` Wikipedia, `y` YouTube, `t` translator, `a` your AI, `c` Claude… |
 
-**Raven** (0.9, off until you turn it on in Settings): messages and links to your friends' Sidearms. You add a friend with a one-time code and check four words out loud; messages are encrypted on your PC, and Sidearm's small post office on Cloudflare (`server/`) only passes them on. Whoever writes gets a tab with their avatar beside the window; `@name text` in the bar sends a message with the page you're on.
+**Raven** (0.9, off until you turn it on in Settings): messages and links to your friends' Sidearms. You add a friend with a one-time code and check four words out loud; messages are encrypted on your PC, and Sidearm's small post office on Cloudflare (`server/`) only passes them on. Whoever writes gets a tab with their avatar beside the window; `@name text` in the bar sends a message with the page you're on. From 0.9.5 it carries pictures too: screenshots, drawings, anything you paste.
 
-Also: notes and pinned sites on the start page (`n` + text in the bar adds a note), a fix for text typed in the wrong keyboard layout, ad blocking (YouTube ads skipped too), reader view, "clear fog" (overlays and paywall pop-ups), mouse gestures, sound off by default, clean links without trackers, your own color and grain, Ukrainian and English.
+**Drawing** (0.9.5): mark up a screenshot or doodle on a blank sheet with a pen, a brush, a highlighter, stamps and text; rough circles, boxes and arrows come out neat. Drawings stay with your notes on the start page.
+
+Also: mouse gestures with shapes (circle, square, triangle, tick…) and your own, notes and pinned sites on the start page (`n` + text in the bar adds a note), a fix for text typed in the wrong keyboard layout, ad blocking (YouTube ads skipped too), reader view, "clear fog" (overlays and paywall pop-ups), sound off by default, clean links without trackers, your own color and grain, Ukrainian and English.
 
 The full list of commands is on Sidearm's start page, in the "Field manual" section.
 
@@ -72,7 +77,7 @@ The result is in `build/Sidearm/`. Layout:
 - EasyList, EasyPrivacy and EasyList Cookie filter lists (GPLv3 / CC BY-SA 3.0): downloaded on first start
 - [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home) (GPLv3): only if you pick it in Settings; downloaded from its official GitHub
 - Exchange rates: the National Bank of Ukraine
-- Raven's avatars: four by the Sidearm project, the clouds by **soikach**
+- Raven's avatars: four by the Sidearm project, the waves on the shore by **soikach**
 
 ---
 
@@ -111,12 +116,17 @@ The result is in `build/Sidearm/`. Layout:
 | **Alt + Shift + P** | Винести всю сторінку (мапа лишається на місці, нічого не перезавантажується) |
 | **Alt + T** | Перекласти сторінку |
 | **Alt + V** | Скопійоване в Sidearm: останні 10 речей, текст і картинки |
+| **Alt + S** | Скріншот: частина, те, що видно, або вся сторінка; далі малюйте, копіюйте чи зберігайте |
+| **Alt + тягнути** | Завантажити все в рамці: картинки в найбільшому розмірі, файли, відео |
+| **Середня кнопка** | Джойстик прокрутки: що далі тягнете, то швидше |
 | **Затиснути Alt над словом** | Значення, Вікіпедія й переклад |
 | **Префікси** | `w` Вікіпедія, `y` YouTube, `t` перекладач, `a` ваш ШІ, `c` Claude… |
 
-**Ворон** (0.9, вимкнений, доки ви не ввімкнете його в налаштуваннях): повідомлення й посилання в Sidearm ваших друзів. Друга додають одноразовим кодом і звіряють чотири слова вголос; повідомлення шифруються на вашому ПК, а маленька пошта Sidearm на Cloudflare (`server/`) лише передає їх. Хто написав, той отримує вкладку зі своїм аватаром збоку вікна; `@імʼя текст` у рядку надсилає повідомлення разом зі сторінкою, на якій ви зараз.
+**Ворон** (0.9, вимкнений, доки ви не ввімкнете його в налаштуваннях): повідомлення й посилання в Sidearm ваших друзів. Друга додають одноразовим кодом і звіряють чотири слова вголос; повідомлення шифруються на вашому ПК, а маленька пошта Sidearm на Cloudflare (`server/`) лише передає їх. Хто написав, той отримує вкладку зі своїм аватаром збоку вікна; `@імʼя текст` у рядку надсилає повідомлення разом зі сторінкою, на якій ви зараз. З 0.9.5 він передає й картинки: скріншоти, малюнки, будь-що вставлене.
 
-А ще: нотатки й закріплені сайти на стартовій сторінці (`n` + текст у рядку додає нотатку), виправлення тексту, набраного не в тій розкладці, блокування реклами (і пропуск реклами на YouTube), режим читання, «прибрати туман» (оверлеї й вікна з підписками), жести мишею, вимкнений за замовчуванням звук, чисті посилання без трекерів, власний колір і зернистість, українська й англійська.
+**Малювання** (0.9.5): позначайте скріншоти або малюйте на чистому аркуші ручкою, пензликом, маркером, штампами й текстом; криві кола, квадрати й стрілки стають рівними. Малюнки зберігаються з нотатками на стартовій сторінці.
+
+А ще: жести мишею з фігурами (коло, квадрат, трикутник, галочка…) і власними жестами, нотатки й закріплені сайти на стартовій сторінці (`n` + текст у рядку додає нотатку), виправлення тексту, набраного не в тій розкладці, блокування реклами (і пропуск реклами на YouTube), режим читання, «прибрати туман» (оверлеї й вікна з підписками), вимкнений за замовчуванням звук, чисті посилання без трекерів, власний колір і зернистість, українська й англійська.
 
 Повний список команд є на стартовій сторінці Sidearm, у розділі «Польовий довідник».
 
@@ -150,4 +160,4 @@ Sidearm збирається компілятором Mono під .NET Framework
 - Списки фільтрів EasyList, EasyPrivacy і EasyList Cookie (GPLv3 / CC BY-SA 3.0): завантажуються при першому запуску
 - [uBlock Origin Lite](https://github.com/uBlockOrigin/uBOL-home) (GPLv3): лише якщо обрати його в налаштуваннях; завантажується з офіційного GitHub
 - Курси валют: Національний банк України
-- Аватари Ворона: чотири від проєкту Sidearm, хмари малювала **soikach**
+- Аватари Ворона: чотири від проєкту Sidearm, хвилі на березі малювала **soikach**

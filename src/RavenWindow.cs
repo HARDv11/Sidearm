@@ -20,6 +20,7 @@ namespace Sidearm
         public bool Ready;
         public string Mode = "", Key;   // what it shows: chat (Key = the friend), list, add, review, pick, peek
         public event Action<Dictionary<string, object>> Message;
+        public event Action Moved; // 0.9.5: dragged by its header and let go
         int pageHeight = -1;
 
         [DllImport("user32.dll")] static extern bool ShowWindow(IntPtr hwnd, int cmd);
@@ -74,6 +75,7 @@ namespace Sidearm
                 string t = Json.Str(m, "t");
                 if (t == "layout") { pageHeight = (int)Json.Num(m, "h", 0); if (Mode == "peek") FitPeek(); return; }
                 if (t == "ready") Ready = true;
+                if (t == "drag") { StartDrag(); return; }
                 var handler = Message;
                 if (handler != null) handler(m);
             };
@@ -105,6 +107,28 @@ namespace Sidearm
                 try { View.Focus(); } catch (Exception) { }
             }
             MainForm.KickView(View, false);
+        }
+
+        bool dragging;
+
+        /// <summary>0.9.5: the header hands the press to Windows as if it landed on a title bar; Windows runs the move.</summary>
+        void StartDrag()
+        {
+            dragging = true;
+            Native.ReleaseCapture();
+            var c = Cursor.Position;
+            Native.PostMessage(Handle, Native.WM_NCLBUTTONDOWN, (IntPtr)Native.HTCAPTION, (IntPtr)((c.Y << 16) | (c.X & 0xFFFF)));
+        }
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            if (m.Msg == Native.WM_EXITSIZEMOVE && dragging)
+            {
+                dragging = false;
+                anchor = new Rectangle(Left, Top, anchor.Width, anchor.Height);
+                var h = Moved; if (h != null) h();
+            }
         }
 
         void FitPeek()

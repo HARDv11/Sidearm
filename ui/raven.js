@@ -11,6 +11,7 @@
   var S = { on: false, online: false, ready: false, title: 'Raven', me: { name: '', av: 0 }, friends: [], replies: [], lang: 'en' };
   var view = { mode: 'list', key: null, page: null };
   var chats = {};        // key → messages
+  var pics = {};         // 0.9.5: picture file → data URL, asked for as they're shown
   var drafts = {};       // key → what you were typing
   var addTab = 'invite', invite = null, codeInfo = null, codeText = '', aliasText = '', busy = false, errorText = '';
   var peekTimer = 0, peekHeld = false;
@@ -124,6 +125,19 @@
       else if (e.key === 'Escape') { e.preventDefault(); close(); }
     });
     row.appendChild(input);
+    if (!opts.compact) {
+      var cam = button('rv-cam', null, function () { send({ t: 'shot', key: key }); }, T('Send a picture of the page you\u2019re on (you can draw on it first)'));
+      cam.appendChild(icon('rv-cam'));
+      row.appendChild(cam);
+    }
+    input.addEventListener('paste', function (e) {
+      var files = e.clipboardData && e.clipboardData.files;
+      var f = files && Array.prototype.filter.call(files, function (x) { return /^image\//.test(x.type); })[0];
+      if (!f) return;
+      e.preventDefault();
+      sendPicture(key, f, input.value.trim());
+      input.value = ''; drafts[key] = ''; grow();
+    });
     var wing = button('rv-send', null, go, T('Send (Enter)'));
     wing.appendChild(icon('rv-wing'));
     row.appendChild(wing);
@@ -186,7 +200,8 @@
       var d = day(m.at);
       if (d !== lastDay) { thread.appendChild(raw('div', 'rv-day', d)); lastDay = d; }
       var b = el('div', 'rv-msg' + (m.mine ? ' mine' : ''));
-      var bub = el('div', 'rv-bubble');
+      var bub = el('div', 'rv-bubble' + (m.pic ? ' pic' : ''));
+      if (m.pic) bub.appendChild(picture(m, f.key));
       if (m.text) bub.appendChild(raw('div', 'rv-text', m.text));
       if (m.url) {
         var a = el('a', 'rv-card');
@@ -213,6 +228,28 @@
     wrap.appendChild(comp);
     app.appendChild(wrap);
     requestAnimationFrame(function () { thread.scrollTop = thread.scrollHeight; if (f.status === 'friend') comp._input.focus(); });
+  }
+
+  /** 0.9.5: a picture in the chat. Its file comes from the shell when it's first shown; a click opens it big. */
+  function picture(m, key) {
+    var box = button('rv-pic', null, function () { send({ t: 'picOpen', name: m.pic, key: key }); }, T('Open it big: look closer, draw on it, keep it'));
+    var w = m.w || 4, h = m.h || 3, maxW = 220, maxH = 260, k = Math.min(1, maxW / w, maxH / h);
+    box.style.width = Math.max(60, Math.round(w * k)) + 'px';
+    box.style.aspectRatio = w + ' / ' + h;
+    var img = document.createElement('img'); img.alt = '';
+    if (pics[m.pic]) img.src = pics[m.pic];
+    else { box.classList.add('loading'); send({ t: 'pic', name: m.pic }); }
+    img.dataset.pic = m.pic;
+    box.appendChild(img);
+    return box;
+  }
+
+  /** A pasted or dropped picture: squeezed here (sharp WebP under the post office's limit), sent by the shell. */
+  function sendPicture(key, blob, caption) {
+    if (!window.SidearmPicture || !blob) return;
+    SidearmPicture.fromBlob(blob).then(function (r) {
+      send({ t: 'sendPic', key: key, data: r.data, w: r.w, h: r.h, text: caption || '' });
+    }, function (e) { errorText = T(e.message === 'too big' ? 'This picture is too big to send' : 'That isn\u2019t a picture Sidearm can send'); render(); });
   }
 
   // ───────────── all friends ─────────────
@@ -505,6 +542,12 @@
         if (view.mode === 'review') aliasText = '';
         render();
         break;
+      case 'pic':
+        if (m.data) {
+          pics[m.name] = m.data;
+          document.querySelectorAll('img[data-pic="' + m.name + '"]').forEach(function (img) { img.src = m.data; img.parentNode.classList.remove('loading'); });
+        }
+        break;
       case 'invite':
         busy = false; invite = { code: m.code, expires: m.expires };
         if (view.mode === 'add') render();
@@ -543,6 +586,34 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && !e.defaultPrevented) { e.preventDefault(); close(); }
+  });
+
+  // 0.9.5: drop a picture on a chat to send it
+  document.addEventListener('dragover', function (e) { if (view.mode === 'chat' || view.mode === 'peek') e.preventDefault(); });
+  document.addEventListener('drop', function (e) {
+    if (view.mode !== 'chat' && view.mode !== 'peek') return;
+    e.preventDefault();
+    var f = e.dataTransfer && Array.prototype.filter.call(e.dataTransfer.files || [], function (x) { return /^image\//.test(x.type); })[0];
+    if (f && view.key) sendPicture(view.key, f, '');
+  });
+
+  // 0.9.5: drag the window by its header (Windows runs the move once the pointer travels a few pixels);
+  // a double-click puts it back beside Sidearm
+  var dragFrom = null, GRIP = '.rv-head, .rv-top, .rv-who, .rv-peek-top';
+  document.addEventListener('mousedown', function (e) {
+    if (e.button !== 0 || !e.target.closest(GRIP) || e.target.closest('button, input, textarea, a, select')) return;
+    dragFrom = { x: e.screenX, y: e.screenY };
+  });
+  window.addEventListener('mousemove', function (e) {
+    if (!dragFrom) return;
+    if (!(e.buttons & 1)) { dragFrom = null; return; }
+    if (Math.abs(e.screenX - dragFrom.x) + Math.abs(e.screenY - dragFrom.y) < 4) return;
+    dragFrom = null;
+    send({ t: 'drag' });
+  });
+  window.addEventListener('mouseup', function () { dragFrom = null; });
+  document.addEventListener('dblclick', function (e) {
+    if (e.target.closest(GRIP) && !e.target.closest('button, input, textarea, a')) send({ t: 'dock' });
   });
 
   render();

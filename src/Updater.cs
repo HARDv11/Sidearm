@@ -344,6 +344,22 @@ namespace Sidearm
             Log.Info("Updated from " + Json.Str(p, "from") + " to " + Current + "; removed " + removed + " old files");
         }
 
+        /// <summary>
+        /// 0.9.5: quitting on purpose isn't a failed start. If the engine came up, that's as good as <see cref="Confirm"/>;
+        /// if it never had to (quit from the tray before Sidearm was ever shown), this start just doesn't count.
+        /// </summary>
+        public static void CleanExit(bool engineOk)
+        {
+            var p = ReadPending();
+            if (p == null) return;
+            if (engineOk) { Confirm(); return; }
+            int attempts = (int)Json.Num(p, "attempts", 0);
+            if (attempts <= 0) return;
+            p["attempts"] = attempts - 1;
+            try { WritePending(p); } catch (Exception) { }
+            Log.Info("Update " + Json.Str(p, "version") + ": quit before the engine started; this start doesn't count");
+        }
+
         /// <summary>Starts the new copy, which waits for this one to exit before it takes over.</summary>
         public static void Restart(bool tray)
         {

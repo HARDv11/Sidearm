@@ -12,7 +12,7 @@ namespace Sidearm
     /// count), and the wing for all chats. Drawn by the shell, no web view. On the left of the window, or on the right
     /// when Sidearm sits against the left edge of the screen. Clicking doesn't take the focus.
     /// </summary>
-    internal sealed class RavenTabs : Form
+    internal sealed class RavenTabs : LayeredForm
     {
         public sealed class Item { public string Key, Tip; public int Avatar = -1, Unread; public bool Open; }
 
@@ -27,25 +27,8 @@ namespace Sidearm
 
         public RavenTabs()
         {
-            FormBorderStyle = FormBorderStyle.None;
-            ShowInTaskbar = false;
-            TopMost = true;
-            StartPosition = FormStartPosition.Manual;
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.UserPaint | ControlStyles.ResizeRedraw, true);
             Cursor = Cursors.Hand;
         }
-
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                var cp = base.CreateParams;
-                cp.ExStyle |= Native.WS_EX_TOOLWINDOW | 0x08000000; // WS_EX_NOACTIVATE: a click doesn't take the focus
-                return cp;
-            }
-        }
-
-        protected override bool ShowWithoutActivation { get { return true; } }
 
         public int Count { get { return items.Count; } }
 
@@ -60,10 +43,8 @@ namespace Sidearm
             items.Clear();
             items.AddRange(list);
             hover = -1;
-            Invalidate();
+            Redraw();
         }
-
-        double Dpi { get { return Native.Scale(Handle); } }
 
         Rectangle TabRect(int i)
         {
@@ -95,20 +76,8 @@ namespace Sidearm
             return p;
         }
 
-        protected override void OnResize(EventArgs e) { base.OnResize(e); ShapeIt(); }
-
-        /// <summary>Only the tabs are window: between and around them the game shows and clicks go through.</summary>
-        public void ShapeIt()
-        {
-            if (Width < 2 || Height < 2) return;
-            float rad = (float)(10 * Dpi);
-            var region = new Region(Rectangle.Empty);
-            for (int i = 0; i < items.Count; i++)
-                using (var p = TabPath(TabRect(i), rad)) region.Union(p);
-            var old = Region;
-            Region = region;
-            if (old != null) old.Dispose();
-        }
+        /// <summary>0.9.5: drawn with per-pixel alpha (smooth edges); clear pixels let clicks through.</summary>
+        public void ShapeIt() { Redraw(); }
 
         static Image AvatarImage(int n)
         {
@@ -128,13 +97,8 @@ namespace Sidearm
             return img;
         }
 
-        protected override void OnPaint(PaintEventArgs e)
+        protected override void Render(Graphics g, Size canvas)
         {
-            var g = e.Graphics;
-            g.Clear(Back);
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             float s = (float)Dpi, rad = 10 * s, lw = Math.Max(1.5f, 2 * s);
             for (int i = 0; i < items.Count; i++)
             {
@@ -143,6 +107,7 @@ namespace Sidearm
                 var inner = new RectangleF(r.X + lw / 2, r.Y + lw / 2, r.Width - lw, r.Height - lw);
                 using (var path = TabPath(inner, rad))
                 {
+                    using (var bb = new SolidBrush(Back)) g.FillPath(bb, path);
                     if (i == hover) using (var hb = new SolidBrush(Color.FromArgb(36, Accent))) g.FillPath(hb, path);
                     using (var pen = new Pen(it.Open ? Accent : Line, lw)) g.DrawPath(pen, path);
                 }
@@ -179,13 +144,13 @@ namespace Sidearm
             if (h != hover)
             {
                 hover = h;
-                Invalidate();
+                Redraw();
                 tip.SetToolTip(this, h >= 0 ? items[h].Tip : null);
             }
             base.OnMouseMove(e);
         }
 
-        protected override void OnMouseLeave(EventArgs e) { hover = -1; Invalidate(); base.OnMouseLeave(e); }
+        protected override void OnMouseLeave(EventArgs e) { hover = -1; Redraw(); base.OnMouseLeave(e); }
 
         protected override void OnMouseUp(MouseEventArgs e)
         {

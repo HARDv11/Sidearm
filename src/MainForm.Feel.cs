@@ -175,6 +175,17 @@ namespace Sidearm
                         lastPageAction = DateTime.UtcNow;
                         SendToBrowser(tab.IsNewTab ? null : tab.Url, a == "zenPrivate");
                         break;
+                    // 0.9.5: the new ones, for strokes and shapes
+                    case "popPage": if (!inGlance) PopOutPage(tab); break;
+                    case "shot": StartShot(inGlance ? tab : active); break;
+                    case "draw": OpenDrawing(null); break;
+                    case "clips": ShowClips(); break;
+                    case "send": if (!tab.IsNewTab && IsWebUrl(tab.Url)) SendToFriend(tab.Url, tab.Title); break;
+                    case "raven": if (S.raven) ToggleRavenList(); else Toast(RavenTitle + " is off. Turn it on in Settings", "Settings", "settings"); break;
+                    case "ghost": ToggleGhost(); break;
+                    case "mute": ToggleMute(); break;
+                    case "reader": if (!inGlance) ToggleReader(tab); break;
+                    case "translate": if (!inGlance) ToggleTranslate(tab); break;
                 }
             }
             catch (Exception ex) { Log.Error("Gesture " + a, ex); }

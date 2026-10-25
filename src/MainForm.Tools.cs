@@ -320,8 +320,9 @@ namespace Sidearm
             await EnsureEnvironment();
             if (video != null && !video.IsDisposed) video.Close(); // one at a time
             var bounds = VideoBounds();
-            var w = new VideoWindow(Trim(title, 60), bounds, Color.Black);
+            var w = new VideoWindow(Trim(title, 80), bounds, Color.Black);
             video = w;
+            StyleFloat(w);
             videoTab = new Tab { Id = -2, Url = url, Title = title };
             w.Closing2 += () =>
             {

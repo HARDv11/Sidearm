@@ -15,6 +15,10 @@ import { DurableObject } from 'cloudflare:workers';
 const VERSION = '1';
 const MAX_SKEW_MS = 5 * 60 * 1000;     // a signed request is good for 5 minutes either way
 const MAX_CT = 8 * 1024;               // ciphertext per message (base64 characters)
+const MAX_CT_PIC = 460 * 1024;         // 0.9.5: a picture (a sealed WebP of up to ~240 KB)
+const PIC_PER_DAY = 60;                // pictures per sender, per inbox
+const MAX_PENDING_PICS = 100;          // pictures waiting in one inbox
+const MAX_BODY = 512 * 1024;
 const MAX_PENDING = 500;               // messages waiting in one inbox
 const KEEP_MS = 7 * 24 * 3600 * 1000;  // undelivered messages are dropped after a week
 const MAX_FRIENDS = 64;
@@ -103,9 +107,10 @@ export default {
     let body = new Uint8Array(0);
     if (request.method !== 'GET') {
       const len = Number(request.headers.get('content-length') || 0);
-      if (len > 64 * 1024) return fail(413, 'too big');
+      const max = op === 'send' ? MAX_BODY : 64 * 1024;
+      if (len > max) return fail(413, 'too big');
       body = new Uint8Array(await request.arrayBuffer());
-      if (body.length > 64 * 1024) return fail(413, 'too big');
+      if (body.length > max) return fail(413, 'too big');
     }
     let who;
     try { who = await verify(request, url, body); } catch (r) { if (r instanceof Response) return r; throw r; }
@@ -138,6 +143,7 @@ export class Inbox extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS friends (key TEXT PRIMARY KEY)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS invites (hash TEXT PRIMARY KEY, exp INTEGER NOT NULL)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS rate (sender TEXT PRIMARY KEY, minute INTEGER, nmin INTEGER, day INTEGER, nday INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS picrate (sender TEXT PRIMARY KEY, day INTEGER, n INTEGER)`);
     // keep-alive answered by the runtime: no wake-up, no duration
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
   }
@@ -173,12 +179,17 @@ export class Inbox extends DurableObject {
     let m; try { m = JSON.parse(typeof data === 'string' ? data : new TextDecoder().decode(data)); } catch (e) { return; }
     if (m && m.t === 'ack' && Array.isArray(m.ids)) this.ackIds(m.ids);
     else if (m && m.t === 'fetch') ws.send(JSON.stringify({ t: 'list', list: this.pending() }));
+    else if (m && m.t === 'get' && typeof m.id === 'string' && m.id.length <= 64) {
+      // 0.9.5: one message in full (a picture is listed without its contents, so the list stays small)
+      const row = this.sql.exec(`SELECT id, sender AS "from", kind, ct, at FROM msgs WHERE id = ?`, m.id).toArray()[0];
+      if (row) ws.send(JSON.stringify({ t: 'one', msg: row }));
+    }
   }
   async webSocketClose(ws, code) { try { ws.close(code === 1005 ? 1000 : code, 'bye'); } catch (e) {} }
   async webSocketError() {}
 
   pending() {
-    return this.sql.exec(`SELECT id, sender AS "from", kind, ct, at FROM msgs ORDER BY at LIMIT 200`).toArray();
+    return this.sql.exec(`SELECT id, sender AS "from", kind, CASE WHEN kind = 'pic' THEN '' ELSE ct END AS ct, at FROM msgs ORDER BY at LIMIT 200`).toArray();
   }
 
   ack(body) { return json({ removed: this.ackIds(Array.isArray(body.ids) ? body.ids : []) }); }
@@ -211,26 +222,29 @@ export class Inbox extends DurableObject {
   // ── someone writes to this inbox ──
   async receive(senderKey, fromOwner, body) {
     if (!body || typeof body.id !== 'string' || !/^[A-Za-z0-9_-]{16,64}$/.test(body.id)) return fail(400, 'id: 16-64 base64url characters');
-    if (typeof body.ct !== 'string' || !body.ct.length || body.ct.length > MAX_CT || !/^[A-Za-z0-9_-]+$/.test(body.ct)) return fail(400, 'ct: base64url, up to ' + MAX_CT);
-    let kind = 'msg';
+    const pic = body.pic === true, maxCt = pic ? MAX_CT_PIC : MAX_CT;
+    if (typeof body.ct !== 'string' || !body.ct.length || body.ct.length > maxCt || !/^[A-Za-z0-9_-]+$/.test(body.ct)) return fail(400, 'ct: base64url, up to ' + maxCt);
+    let kind = pic ? 'pic' : 'msg';
     const friend = fromOwner || this.sql.exec(`SELECT 1 FROM friends WHERE key = ?`, senderKey).toArray().length > 0;
     if (!friend) {
       // a stranger needs a one-time invite from the owner; it becomes a friend request, not a message
-      if (typeof body.invite !== 'string') return fail(403, 'not a friend');
+      if (typeof body.invite !== 'string' || pic) return fail(403, 'not a friend');
       const h = hex(await sha256(body.invite));
       const row = this.sql.exec(`SELECT exp FROM invites WHERE hash = ?`, h).toArray()[0];
       if (!row || row.exp < Date.now()) return fail(403, 'invite unknown or expired');
       this.sql.exec(`DELETE FROM invites WHERE hash = ?`, h);
       kind = 'request';
     }
-    const limited = this.limit(senderKey);
+    const limited = this.limit(senderKey) || (pic && this.limitPics(senderKey));
     if (limited) return limited;
     if (this.sql.exec(`SELECT COUNT(*) AS n FROM msgs`).one().n >= MAX_PENDING) return fail(507, 'inbox full');
+    if (pic && this.sql.exec(`SELECT COUNT(*) AS n FROM msgs WHERE kind = 'pic'`).one().n >= MAX_PENDING_PICS) return fail(507, 'inbox full');
     const at = Date.now();
     const res = this.sql.exec(`INSERT OR IGNORE INTO msgs (id, sender, kind, ct, at) VALUES (?, ?, ?, ?, ?)`, body.id, senderKey, kind, body.ct, at);
     if (res.rowsWritten === 0) return json({ ok: true, duplicate: true });
     // straight to the owner if Sidearm is connected; otherwise it waits (up to a week)
-    const msg = JSON.stringify({ t: 'msg', msg: { id: body.id, from: senderKey, kind, ct: body.ct, at } });
+    // a picture is announced without its contents; Sidearm asks for it ("get")
+    const msg = JSON.stringify({ t: 'msg', msg: { id: body.id, from: senderKey, kind, ct: pic ? '' : body.ct, at } });
     let pushed = 0;
     for (const ws of this.ctx.getWebSockets()) try { ws.send(msg); pushed++; } catch (e) {}
     if (!(await this.ctx.storage.getAlarm())) await this.ctx.storage.setAlarm(at + KEEP_MS + 60000);
@@ -246,12 +260,22 @@ export class Inbox extends DurableObject {
     return null;
   }
 
+  limitPics(sender) {
+    const day = Math.floor(Date.now() / 86400000);
+    const r = this.sql.exec(`SELECT day, n FROM picrate WHERE sender = ?`, sender).toArray()[0];
+    const n = r && r.day === day ? r.n + 1 : 1;
+    if (n > PIC_PER_DAY) return fail(429, 'slow down');
+    this.sql.exec(`INSERT OR REPLACE INTO picrate (sender, day, n) VALUES (?, ?, ?)`, sender, day, n);
+    return null;
+  }
+
   purgeOld() { this.sql.exec(`DELETE FROM msgs WHERE at < ?`, Date.now() - KEEP_MS); }
 
   async alarm() {
     this.purgeOld();
     this.sql.exec(`DELETE FROM invites WHERE exp < ?`, Date.now());
     this.sql.exec(`DELETE FROM rate WHERE day < ?`, Math.floor(Date.now() / 86400000) - 1);
+    this.sql.exec(`DELETE FROM picrate WHERE day < ?`, Math.floor(Date.now() / 86400000) - 1);
     const oldest = this.sql.exec(`SELECT MIN(at) AS at FROM msgs`).one().at;
     if (oldest) await this.ctx.storage.setAlarm(oldest + KEEP_MS + 60000);
   }

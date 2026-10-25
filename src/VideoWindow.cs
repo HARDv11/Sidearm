@@ -15,8 +15,8 @@ namespace Sidearm
 
         public VideoWindow(string title, Rectangle bounds, Color back) : base(title, bounds, back)
         {
-            View = new WebView2 { Dock = DockStyle.Fill, DefaultBackgroundColor = Color.Black };
-            Controls.Add(View);
+            View = new WebView2 { DefaultBackgroundColor = Color.Black };
+            PlaceView(View);
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
