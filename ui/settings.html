@@ -115,8 +115,9 @@
       </select></div>
     <div class="s-row" id="customRow" hidden><div><b>Custom search URL</b><small>Use {q} where the search goes.</small></div><input type="text" id="customUrl" class="s-text wide" spellcheck="false"></div>
     <div class="s-block">
-      <div class="s-blockhead"><b>Prefixes</b><small>Type a prefix, a space, then your search. {q} = your words · {tl}/{sl} = translation direction (uk ↔ en).</small></div>
+      <div class="s-blockhead"><b>Prefixes</b><small>Type a prefix, a space, then your search. {q} = your words · {tl}/{sl} = translation direction (uk ↔ en). Any letters work, Cyrillic too. Saves by itself.</small></div>
       <table class="s-table" id="bangs"><thead><tr><th>Prefix</th><th>Name</th><th>URL</th><th></th></tr></thead><tbody></tbody></table>
+      <p class="s-bad-msg" id="bangsMsg" hidden></p>
       <div class="s-actions"><button id="addBang" class="pbtn">Add prefix</button><button id="saveBangs" class="pbtn accent">Save prefixes</button><button id="resetBangs" class="link">Reset to defaults</button></div>
     </div>
   </section>

@@ -507,22 +507,62 @@
     tr.querySelector('input').focus();
     bangsDirty = true;
   });
-  $('saveBangs').addEventListener('click', function () {
-    var bangs = {}, bad = false;
+  // 0.9.7: any letters for a prefix (Cyrillic too), a helping hand with {q}, a reason when a row is refused,
+  // and it saves by itself once every row is right (the Save button is still there)
+  var SEARCH_PARAMS = ['q', 'query', 'search', 'search_query', 'text', 's', 'k', 'keyword', 'keywords', 'term', 'wd', 'p', 'searchTerm', 'search_term', 'find'];
+  /** A search address without {q}: ends with "=", or carries your test search in a known parameter → put {q} there. */
+  function withQ(url) {
+    if (url.indexOf('{q}') >= 0) return url;
+    if (/[=\/]$/.test(url) && /[?&][^=&]+=$/.test(url)) return url + '{q}';
+    try {
+      var u = new URL(url);
+      for (var i = 0; i < SEARCH_PARAMS.length; i++) {
+        var p = SEARCH_PARAMS[i];
+        if (u.searchParams.has(p)) {
+          var re = new RegExp('([?&]' + p + '=)[^&#]*');
+          return url.replace(re, '$1{q}');
+        }
+      }
+    } catch (e) {}
+    return url;
+  }
+  function checkBangs() {
+    var bangs = {}, problems = [], seen = {};
     $('bangs').querySelectorAll('tbody tr').forEach(function (tr) {
       var i = tr.querySelectorAll('input');
       var k = i[0].value.trim().toLowerCase().replace(/^!/, ''), url = i[2].value.trim();
-      var ok = /^[a-z0-9]{1,12}$/.test(k) && /^https?:\/\/\S+$/.test(url) && url.indexOf('{q}') >= 0;
-      tr.classList.toggle('bad', !ok);
-      if (!ok) { bad = !!(k || url !== 'https://'); return; }
+      if (!k && (!url || url === 'https://')) { tr.classList.remove('bad'); tr.title = ''; return; } // the empty new row
+      var fixed = withQ(url);
+      if (fixed !== url && document.activeElement !== i[2]) { i[2].value = fixed; url = fixed; }
+      else url = fixed;
+      var why = '';
+      if (!/^[\p{L}\p{N}]{1,12}$/u.test(k)) why = T(k ? 'A prefix is one word: letters or digits, up to 12' : 'Give it a prefix');
+      else if (seen[k]) why = T('This prefix is already in the list');
+      else if (!/^https?:\/\/[^\s{}]+/.test(url)) why = T('The address starts with https://');
+      else if (url.indexOf('{q}') < 0) why = T('Put {q} where your search goes (search for TEST on the site, paste that address, and swap TEST for {q})');
+      tr.classList.toggle('bad', !!why);
+      tr.title = why;
+      if (why) { problems.push((k || '…') + ': ' + why); return; }
+      seen[k] = 1;
       bangs[k] = { name: i[1].value.trim() || k, url: url };
     });
-    if (bad) return;
+    $('bangsMsg').textContent = problems.join('  ·  ');
+    $('bangsMsg').hidden = !problems.length;
+    return problems.length ? null : bangs;
+  }
+  function saveBangs(loud) {
+    var bangs = checkBangs();
+    if (!bangs) return false;
     bangsDirty = false;
-    this.classList.remove('pulse');
+    $('saveBangs').classList.remove('pulse');
     send({ t: 'settings-bangs', bangs: bangs });
-    flashSaved();
-  });
+    if (loud !== false) flashSaved();
+    return true;
+  }
+  var bangTimer = 0;
+  $('bangs').addEventListener('input', function () { clearTimeout(bangTimer); bangTimer = setTimeout(function () { if (bangsDirty) saveBangs(); }, 900); });
+  $('bangs').addEventListener('focusout', function () { setTimeout(function () { if (bangsDirty) saveBangs(); }, 0); });
+  $('saveBangs').addEventListener('click', function () { saveBangs(); });
   $('resetBangs').addEventListener('click', function () { bangsDirty = false; action('resetBangs'); flashSaved(); });
 
   // ───────────── sites ─────────────

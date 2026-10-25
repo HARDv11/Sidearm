@@ -320,6 +320,12 @@ Since 0.8, Sidearm updates itself from this repository's **GitHub Releases**. No
 
 Newest first. Every version name is in the log's `starting` line, so log entries can be matched to builds. Milestones 1–4 of the original plan map to 0.1, 0.3, 0.4 and 0.5.
 
+### 0.9.7 · Recon — 2026-10-25
+
+**Fixed**
+
+- Settings → Search → your own prefixes: the page only took `a-z0-9` (a Cyrillic prefix was refused), wanted `{q}` without saying so, and saved only on "Save prefixes". Now any letters or digits (`\p{L}\p{N}`, up to 12), `{q}` filled in from a pasted search address (a known search parameter, or a trailing `=`), a reason under the table for any refused row, and it saves by itself 0.9 s after typing stops (or when you leave the table). The shell's own check was already fine.
+
 ### 0.9.6 · Recon — 2026-10-25
 
 **Fixed**

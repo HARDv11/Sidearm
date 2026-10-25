@@ -622,6 +622,7 @@ body.settings {
 .s-text.wide { width: min(420px, 50vw); }
 .s-text:focus, .s-num input:focus, .settings select:focus { border-color: var(--accent); }
 .s-text.bad, tr.bad .s-text { border-color: var(--warn); }
+.s-bad-msg { margin: 8px 0 0; color: var(--warn); font-size: 12.5px; line-height: 1.45; }
 .settings select { min-width: 170px; cursor: pointer; }
 .s-seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 7px; overflow: hidden; }
 .s-seg button { border: 0; background: var(--chrome); color: var(--dim); padding: 7px 12px; font: 600 13px var(--font-text); cursor: pointer; }

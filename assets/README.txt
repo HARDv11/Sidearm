@@ -1,4 +1,4 @@
-SIDEARM 0.9.6 · "Recon" (Розвідка)
+SIDEARM 0.9.7 · "Recon" (Розвідка)
 "Switching to your sidearm is faster than opening a browser."
 
 START
@@ -25,6 +25,11 @@ UPDATING
      over your sign-ins, open tabs and settings. Say yes, and you're still signed in everywhere.
   By hand: copy the old "data" folder next to the new Sidearm.exe before its first start.
   Never send your data folder to anyone: it holds your sign-ins.
+
+NEW IN 0.9.7
+  Prefixes              your own prefixes in Settings -> Search take any letters (Cyrillic too), save by themselves,
+                        and say what's wrong with a row instead of just turning it red. Paste the address of a search
+                        (or one ending in "=") and {q} goes in by itself
 
 NEW IN 0.9.6
   Fixed                 in a Raven chat, your own message with a long link title stuck out past the window's

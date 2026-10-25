@@ -168,7 +168,6 @@ window.SIDEARM_UK = {
 "Custom…": "Власна…",
 "Custom search URL": "Власна адреса пошуку",
 "Use {q} where the search goes.": "Поставте {q} там, де має бути запит.",
-"Type a prefix, a space, then your search. {q} = your words · {tl}/{sl} = translation direction (uk ↔ en).": "Введіть префікс, пробіл, потім запит. {q} = ваші слова · {tl}/{sl} = напрям перекладу (uk ↔ en).",
 "Prefix": "Префікс",
 "Name": "Назва",
 "URL": "Адреса",
@@ -935,7 +934,13 @@ window.SIDEARM_UK = {
 "Its speed, or a key that starts it where the pointer is": "Його швидкість або клавіша, що вмикає його під вказівником",
 "Draw one with the right button held: a circle (either way round), a square, a triangle, a tick, a Z, or a zigzag or wave.": "Намалюйте її, затиснувши праву кнопку: коло (в будь-який бік), квадрат, трикутник, галочку, Z або зигзаг чи хвилю.",
 "〰 a zigzag or a wave": "〰 зигзаг або хвиля",
-"Circle, square, triangle, ✓, Z, a zigzag or a wave; or your own (Settings → Gestures → Record)": "Коло, квадрат, трикутник, ✓, Z, зигзаг чи хвиля; або свій жест (Налаштування → Жести)"
+"Circle, square, triangle, ✓, Z, a zigzag or a wave; or your own (Settings → Gestures → Record)": "Коло, квадрат, трикутник, ✓, Z, зигзаг чи хвиля; або свій жест (Налаштування → Жести)",
+"Type a prefix, a space, then your search. {q} = your words · {tl}/{sl} = translation direction (uk ↔ en). Any letters work, Cyrillic too. Saves by itself.": "Введіть префікс, пробіл, потім запит. {q} = ваші слова · {tl}/{sl} = напрям перекладу (uk ↔ en). Підходять будь-які літери, кирилиця теж. Зберігається саме.",
+"A prefix is one word: letters or digits, up to 12": "Префікс — одне слово: літери чи цифри, до 12",
+"Give it a prefix": "Вкажіть префікс",
+"This prefix is already in the list": "Такий префікс уже є в списку",
+"The address starts with https://": "Адреса має починатися з https://",
+"Put {q} where your search goes (search for TEST on the site, paste that address, and swap TEST for {q})": "Поставте {q} там, де має бути запит (пошукайте на сайті TEST, вставте цю адресу й замініть TEST на {q})"
 },
 "templates": [
 ["Found an earlier Sidearm in {1}. Bring over your sign-ins, tabs and settings? The old copy stays as it is.", "Знайдено попередній Sidearm у {1}. Перенести входи в акаунти, вкладки й налаштування? Стара копія лишиться як є."],
